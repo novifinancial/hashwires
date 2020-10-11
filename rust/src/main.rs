@@ -1,7 +1,5 @@
 mod primitives;
 
-extern crate blake2;
-
 use blake2::{Blake2b, Digest};
 use hex;
 use crate::primitives::find_dp;
@@ -9,6 +7,10 @@ use crate::primitives::find_dp;
 const HASHLEN: usize = 5;
 
 fn main() {
+    let seed = [
+        0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0,
+        0, 0, 0,
+    ];
     println!("Hello, world! Generating a few nums bases:");
     //  println!({:?}, decode(String::from("DEAD")));
 
