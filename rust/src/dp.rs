@@ -2,8 +2,8 @@ use num_bigint::BigUint;
 use num_traits::Num;
 use std::collections::HashSet;
 
-/// Find denominating partition of a numeric `value` in some input `base`.
-/// This currently works for u32 only.
+/// Find denominating partition of a string `value` in some input `base`.
+/// This is using BigUint and is returing a Vec of String in the same `base`.
 pub fn find_dp_u32(value: &str, base: u32) -> Vec<String> {
     let mut exp = BigUint::new(vec![base]);
     let mut ret: Vec<String> = Vec::new();
@@ -19,8 +19,7 @@ pub fn find_dp_u32(value: &str, base: u32) -> Vec<String> {
     while &exp < &val {
         let mut prev = val.clone();
 
-        // optimizing out the unneeded values. Notice this still needs optimization to avoid
-        // duplicated values. Maybe I could just use a set instead of an Vec?
+        // optimizing out the unneeded values to get a minimal dominating partition
         if (&prev + &one) % &exp != zero {
             //  (x//b^i - 1) * b^i + (b-1)
             prev = (&prev / &exp - &one) * &exp + (&exp - &one);
@@ -71,4 +70,5 @@ fn test_dp() {
     assert_eq!(to_ints(find_dp_u32("311", 4)), vec![311, 303, 233]);
     assert_eq!(to_ints(find_dp_u32("310", 4)), vec![310, 303, 233]);
     assert_eq!(to_ints(find_dp_u32("322", 4)), vec![322, 313, 233]);
+    assert_eq!(to_ints(find_dp_u32("233", 4)), vec![233]);
 }

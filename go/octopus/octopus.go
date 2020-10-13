@@ -34,6 +34,12 @@ func main() {
 		findComplete(big.NewInt(1799), 10),
 		findComplete(big.NewInt(1000), 10))
 	fmt.Println("")
+	fmt.Println("using base 4:", findComplete(big.NewInt(44), 4))
+	tv, ok := new(big.Int).SetString("312", 4)
+	if !ok {
+		log.Fatalln("unable to decode string to base 4")
+	}
+	fmt.Println("using base 4:", findComplete(tv, 4))
 
 	pk := signTree("3413", 10)
 	fmt.Printf("Using the following Proving Kit: %+v\n", pk)
