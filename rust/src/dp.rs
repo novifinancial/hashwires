@@ -2,8 +2,8 @@ use num_bigint::BigUint;
 use num_traits::Num;
 use std::collections::HashSet;
 
-/// Find denominating partition of a string `value` in some input `base`.
-/// This is using BigUint and is returing a Vec of String in the same `base`.
+/// Find dominating partition of a string `value` in some input `base`.
+/// This is using BigUint and is returning a Vec of String in the same `base`.
 pub fn find_dp_u32(value: &str, base: u32) -> Vec<String> {
     let mut exp = BigUint::new(vec![base]);
     let mut ret: Vec<String> = Vec::new();
@@ -71,4 +71,7 @@ fn test_dp() {
     assert_eq!(to_ints(find_dp_u32("310", 4)), vec![310, 303, 233]);
     assert_eq!(to_ints(find_dp_u32("322", 4)), vec![322, 313, 233]);
     assert_eq!(to_ints(find_dp_u32("233", 4)), vec![233]);
+
+    // 256
+    assert_eq!(to_ints(find_dp_u32("43294837243342", 256)), vec![312, 303, 233]);
 }
