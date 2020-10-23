@@ -62,7 +62,7 @@ fn test_dp() {
     );
     assert_eq!(to_ints(find_dp_u32("1799", 10)), vec![1799, 999]);
     assert_eq!(to_ints(find_dp_u32("1700", 10)), vec![1700, 1699, 999]);
-    assert_eq!(to_ints(find_dp_u32("1000", 10)), vec![1000, 999]);
+    assert_eq!(to_ints(find_dp_u32("1000", 16)), vec![1000, 999]);
     assert_eq!(to_ints(find_dp_u32("100099", 10)), vec![100099, 99999]);
 
     // base4
@@ -72,6 +72,6 @@ fn test_dp() {
     assert_eq!(to_ints(find_dp_u32("322", 4)), vec![322, 313, 233]);
     assert_eq!(to_ints(find_dp_u32("233", 4)), vec![233]);
 
-    // 256
-    assert_eq!(to_ints(find_dp_u32("43294837243342", 256)), vec![312, 303, 233]);
+    // 256. Please complete this test when base-256 is supported.
+    assert_eq!(to_ints(find_dp_u32("42342346", 256)), vec![312, 303, 233]);
 }
