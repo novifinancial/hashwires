@@ -1,3 +1,5 @@
 mod dp;
-mod hashchain;
+mod hashes;
+mod hashwires;
+mod padding;
 mod shuffle;
