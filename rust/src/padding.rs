@@ -1,6 +1,8 @@
 use num_bigint::BigUint;
 use num_traits::Num;
 
+/// Get number of digits of the input num in input base.
+#[allow(dead_code)]
 pub fn num_base_digits(max_digits: u32, base: u32, num: &BigUint) -> u32 {
     let mut temp = BigUint::from_str_radix(&*base.to_string(), 10).unwrap();
     // max_num = base_bigint.unwrap().pow(max_digits).sub(BigUint::one());
@@ -14,6 +16,8 @@ pub fn num_base_digits(max_digits: u32, base: u32, num: &BigUint) -> u32 {
     1024
 }
 
+/// Get size of padding zeros.
+#[allow(dead_code)]
 pub fn num_base_padding_zeros(max_digits: u32, base: u32, num: &BigUint) -> u32 {
     max_digits - num_base_digits(max_digits, base, num)
 }

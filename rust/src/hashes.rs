@@ -1,9 +1,9 @@
-use blake3::Hasher as Blake3;
 use digest::Digest;
 use std::convert::TryFrom;
 
 /// Computes a hash chain using a seed and number of iterations.
 #[inline]
+#[allow(dead_code)]
 pub fn hash_chain<D: Digest>(seed: &[u8], iterations: usize, output: &mut [u8]) {
     // TODO: reuse hashers in single threaded applications, i.e. via finalize_reset()
     let mut hasher = D::new();
@@ -15,6 +15,7 @@ pub fn hash_chain<D: Digest>(seed: &[u8], iterations: usize, output: &mut [u8]) 
 }
 
 #[inline]
+#[allow(dead_code)]
 pub fn salted_hash<D: Digest>(salt: &[u8], seed: &[u8], output: &mut [u8]) {
     let mut hasher = D::new();
     hasher.update(salt);
@@ -25,9 +26,10 @@ pub fn salted_hash<D: Digest>(salt: &[u8], seed: &[u8], output: &mut [u8]) {
 /// Simple KDF hash(salt, i, seed)
 /// TODO: make it more generic to work for any seed size
 #[inline]
-pub fn generate_subseeds<D: Digest>(salt: &[u8], seed: &[u8], num_of_seeds: usize) -> Vec<[u8; 32]> {
+#[allow(dead_code)]
+pub fn generate_subseeds<D: Digest>(salt: &[u8], seed: &[u8], num_of_seeds: u32) -> Vec<[u8; 32]> {
     let mut hasher = D::new();
-    let mut seeds = Vec::with_capacity(num_of_seeds);
+    let mut seeds = Vec::with_capacity(num_of_seeds as usize);
     for i in 0..num_of_seeds {
         hasher.update(salt);
         hasher.update(i.to_le_bytes());
@@ -39,6 +41,8 @@ pub fn generate_subseeds<D: Digest>(salt: &[u8], seed: &[u8], num_of_seeds: usiz
 
 #[test]
 fn test_hash_chain() {
+    use blake3::Hasher as Blake3;
+
     let mut hash_chain_output = [0; 32];
     hash_chain::<Blake3>(
         b"01234567890123456789012345678901",

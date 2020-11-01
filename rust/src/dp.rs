@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 /// Find dominating partition of a string `value` in some input `base`.
 /// This is using BigUint and is returning a Vec of String in the same `base`.
+#[allow(dead_code)]
 pub fn find_dp_u32(value: &str, base: u32) -> Vec<String> {
     let mut exp = BigUint::new(vec![base]);
     let mut ret: Vec<String> = Vec::new();
@@ -16,7 +17,7 @@ pub fn find_dp_u32(value: &str, base: u32) -> Vec<String> {
     let val = BigUint::from_str_radix(value, base).unwrap();
 
     set.insert(val.to_str_radix(base));
-    while &exp < &val {
+    while exp < val {
         let mut prev = val.clone();
 
         // optimizing out the unneeded values to get a minimal dominating partition
@@ -25,7 +26,7 @@ pub fn find_dp_u32(value: &str, base: u32) -> Vec<String> {
             prev = (&prev / &exp - &one) * &exp + (&exp - &one);
             set.insert(prev.to_str_radix(base));
         }
-        exp = &exp * &base;
+        exp *= base;
     }
     for x in set.iter() {
         ret.push(x.to_string());
@@ -35,6 +36,7 @@ pub fn find_dp_u32(value: &str, base: u32) -> Vec<String> {
 }
 
 /// to_ints is a function used for the tests to easily compare with Vec<u32>
+#[allow(dead_code)]
 fn to_ints(vals: Vec<String>) -> Vec<u32> {
     let mut ret: Vec<u32> = Vec::new();
     for i in vals {
