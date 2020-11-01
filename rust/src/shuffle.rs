@@ -1,5 +1,4 @@
-use rand::{Rng, RngCore, SeedableRng};
-use rand_chacha::ChaCha12Rng;
+use rand::{Rng, RngCore};
 
 /// A variant of Durstenfeld's algorithm, which shuffles from lowest index to highest.
 #[derive(Debug, Default)]
@@ -13,7 +12,7 @@ pub trait Shuffler<T> {
     fn shuffle<R>(
         &mut self,
         data: &mut Vec<T>,
-        shuffle_len: &usize,
+        shuffle_len: usize,
         rng: &mut R,
     ) -> Result<(), &str>
     where
@@ -23,22 +22,17 @@ pub trait Shuffler<T> {
 
 impl<T> Shuffler<T> for Durstenfeld {
     // TODO: consider descriptive error types
-    fn shuffle<R>(
-        &mut self,
-        data: &mut Vec<T>,
-        shuffle_len: &usize,
-        rng: &mut R,
-    ) -> Result<(), &str>
+    fn shuffle<R>(&mut self, data: &mut Vec<T>, shuffle_len: usize, rng: &mut R) -> Result<(), &str>
     where
         T: Clone,
         R: RngCore + ?Sized,
     {
         let dlen = data.len();
-        if dlen < *shuffle_len {
+        if dlen < shuffle_len {
             return Err("shuffle_len can be larger than input data length");
         }
 
-        for i in 0..*shuffle_len {
+        for i in 0..shuffle_len {
             // TODO: document the range implementation,
             // so we can replicate the logic to other programming languages too.
             let j = rng.gen_range(i, dlen);
@@ -50,20 +44,23 @@ impl<T> Shuffler<T> for Durstenfeld {
 
 #[test]
 fn test_deterministic_durstenfeld() {
+    use rand::SeedableRng;
+    use rand_chacha::ChaCha12Rng;
+
     let seed = [2u8; 32];
     let mut durstenfeld = Durstenfeld::default();
 
     // Test for full length.
     let mut input = vec![1, 2, 3, 4, 5];
     let mut rng = ChaCha12Rng::from_seed(seed);
-    let length = &input.len();
+    let length = input.len();
     durstenfeld.shuffle(&mut input, length, &mut rng);
     assert_eq!(&input, &[5, 3, 4, 1, 2]);
 
     // Test for 2 elements only.
     let mut input = vec![1, 2, 3, 4, 5];
     let mut rng = ChaCha12Rng::from_seed(seed);
-    let length = &2;
+    let length = 2;
     durstenfeld.shuffle(&mut input, length, &mut rng);
     assert_eq!(&input, &[5, 3, 2, 4, 1]);
 }

@@ -5,19 +5,20 @@ use blake3::Hasher as Blake3;
 use num_bigint::BigUint;
 use num_traits::Num;
 
+/// Function to generate HW commitments
+#[allow(dead_code)]
 pub fn generate_commitment(max_digits: u32, base: u32, value_base10_string: &str, seed: &[u8]) {
     // num to BigInt
     let value_bigint = BigUint::from_str_radix(value_base10_string, 10).unwrap();
 
     // vector of DP
-    let dp = find_dp_u32(&value_bigint.to_str_radix(base), base);
+    let _dp = find_dp_u32(&value_bigint.to_str_radix(base), base);
 
     // number of digits on input base (which is equal to the num of chains required)
     let num_of_chains = num_base_digits(max_digits, base, &value_bigint);
 
     // compute hashchain seeds
-    let hashchain_seeds =
-        generate_subseeds::<Blake3>("hashchain_salt".as_bytes(), seed, num_of_chains as usize);
+    let _hashchain_seeds = generate_subseeds::<Blake3>(b"hashchain_salt", seed, num_of_chains);
 }
 
 #[test]
