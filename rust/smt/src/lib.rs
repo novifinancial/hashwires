@@ -1,10 +1,5 @@
-mod dp;
-mod hashes;
-mod hashwires;
-mod padding;
-mod shuffle;
+//! A library supplying paddable sparse Merkle tree.
 
-// For smt
 mod error;
 mod index;
 mod node_template;
