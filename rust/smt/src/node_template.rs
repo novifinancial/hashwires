@@ -63,9 +63,7 @@ impl<D: Digest> Paddable for HashNodeSMT<D> {
 
 impl<D: Digest> Serializable for HashNodeSMT<D> {
     fn serialize(&self) -> Vec<u8> {
-        let mut vec: Vec<u8> = Vec::new();
-        vec.extend_from_slice(&self.hash);
-        vec
+        Vec::from_slice(&self.hash)
     }
 
     fn deserialize_as_a_unit(bytes: &[u8], begin: &mut usize) -> Result<Self, DecodingError> {
@@ -180,10 +178,7 @@ impl Paddable for SumNodeSMT {
 
 impl Serializable for SumNodeSMT {
     fn serialize(&self) -> Vec<u8> {
-        let mut vec: Vec<u8> = Vec::new();
-        let mut bytes = usize_to_bytes(self.0 as usize, 8);
-        vec.append(&mut bytes);
-        vec
+        usize_to_bytes(self.0 as usize, 8)
     }
 
     fn deserialize_as_a_unit(bytes: &[u8], begin: &mut usize) -> Result<Self, DecodingError> {
