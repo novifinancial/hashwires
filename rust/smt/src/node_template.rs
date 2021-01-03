@@ -63,7 +63,7 @@ impl<D: Digest> Paddable for HashNodeSMT<D> {
 
 impl<D: Digest> Serializable for HashNodeSMT<D> {
     fn serialize(&self) -> Vec<u8> {
-        Vec::from_slice(&self.hash)
+        (&self.hash).clone()
     }
 
     fn deserialize_as_a_unit(bytes: &[u8], begin: &mut usize) -> Result<Self, DecodingError> {
