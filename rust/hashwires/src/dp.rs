@@ -1,7 +1,5 @@
-use fasthash::xx::Hash64;
 use num_bigint::BigUint;
-use num_traits::Num;
-use std::collections::HashSet;
+use num_traits::{Num, One, Zero};
 
 /// Find dominating partition of a string `value` in some input `base`.
 /// This is using BigUint and is returning a Vec of String in the same `base`.
@@ -9,27 +7,25 @@ use std::collections::HashSet;
 pub fn find_dp_u32(value: &str, base: u32) -> Vec<String> {
     let mut exp = BigUint::new(vec![base]);
     let mut ret: Vec<String> = Vec::new();
-    let mut set = HashSet::with_hasher(Hash64);
-
-    let one = BigUint::new(vec![1]);
-    let zero = BigUint::new(vec![0]);
 
     let val = BigUint::from_str_radix(value, base).unwrap();
-    let val_plus1 = val.clone() + one.clone();
+    let val_plus1 = &val + BigUint::one();
 
-    set.insert(val.to_str_radix(base));
+    ret.push(val.to_str_radix(base).to_string());
+    let mut prev = val.clone();
     while exp < val {
         // optimizing out the unneeded values to get a minimal dominating partition
-        if &val_plus1 % &exp != zero {
+        if &val_plus1 % &exp != BigUint::zero() {
             //  (x//b^i - 1) * b^i + (b-1)
-            set.insert((&val / &exp * &exp - &one).to_str_radix(base));
+            // set.insert((&val / &exp * &exp - &one).to_str_radix(base));
+            let temp = &val / &exp * &exp - BigUint::one();
+            if prev != temp {
+                ret.push(temp.to_str_radix(base).to_string());
+                prev = temp;
+            }
         }
         exp *= base;
     }
-    for x in set.iter() {
-        ret.push(x.to_string());
-    }
-    ret.sort();
     ret
 }
 
@@ -63,6 +59,7 @@ fn test_dp() {
     assert_eq!(to_ints(find_dp_u32("1799", 10)), vec![1799, 999]);
     assert_eq!(to_ints(find_dp_u32("1700", 10)), vec![1700, 1699, 999]);
     assert_eq!(to_ints(find_dp_u32("1000", 10)), vec![1000, 999]);
+    assert_eq!(to_ints(find_dp_u32("999", 10)), vec![999]);
     assert_eq!(to_ints(find_dp_u32("100099", 10)), vec![100099, 99999]);
 
     // base4
