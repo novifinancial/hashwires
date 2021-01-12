@@ -19,6 +19,8 @@ pub fn generate_commitment(max_digits: u32, base: u32, value_base10_string: &str
 
     // compute hashchain seeds
     let _hashchain_seeds = generate_subseeds::<Blake3>(b"hashchain_salt", seed, num_of_chains);
+
+    // TODO compute hashchains
 }
 
 #[test]
