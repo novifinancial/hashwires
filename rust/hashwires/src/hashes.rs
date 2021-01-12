@@ -76,10 +76,7 @@ fn test_hash_chain() {
 fn test_full_hash_chain() {
     use blake3::Hasher as Blake3;
 
-    let chain = full_hash_chain::<Blake3>(
-        b"01234567890123456789012345678901",
-        3,
-    );
+    let chain = full_hash_chain::<Blake3>(b"01234567890123456789012345678901", 3);
 
     assert_eq!(chain.len(), 3);
     assert_eq!(
