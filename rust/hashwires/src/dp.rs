@@ -1,3 +1,4 @@
+use fasthash::xx::Hash64;
 use num_bigint::BigUint;
 use num_traits::Num;
 use std::collections::HashSet;
@@ -8,8 +9,7 @@ use std::collections::HashSet;
 pub fn find_dp_u32(value: &str, base: u32) -> Vec<String> {
     let mut exp = BigUint::new(vec![base]);
     let mut ret: Vec<String> = Vec::new();
-    // TODO: Check if HashSets are expensive
-    let mut set = HashSet::new();
+    let mut set = HashSet::with_hasher(Hash64);
 
     let one = BigUint::new(vec![1]);
     let zero = BigUint::new(vec![0]);
@@ -73,6 +73,12 @@ fn test_dp() {
     assert_eq!(to_ints(find_dp_u32("310", 4)), vec![310, 303, 233]);
     assert_eq!(to_ints(find_dp_u32("322", 4)), vec![322, 313, 233]);
     assert_eq!(to_ints(find_dp_u32("233", 4)), vec![233]);
+
+    // base16
+    assert_eq!(
+        to_ints(find_dp_u32("3413", 16)),
+        vec![3413, 3409, 3399, 2999]
+    );
 
     // 256. Please complete this test when base-256 is supported.
     assert_eq!(to_ints(find_dp_u32("42342346", 256)), vec![312, 303, 233]);
