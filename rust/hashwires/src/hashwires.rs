@@ -1,19 +1,24 @@
 use crate::dp::{find_dp_u32, find_mdp, value_split_per_base};
-use crate::hashes::{compute_hash_chains, full_hash_chain, generate_subseeds};
+use crate::hashes::{
+    compute_hash_chains, full_hash_chain, generate_subseeds, salted_hash, TOP_SALT,
+};
 use crate::padding::num_base_digits;
 use blake3::Hasher as Blake3;
 use num_bigint::BigUint;
 use num_traits::Num;
 
+use crate::shuffle::deterministic_index_shuffling;
+use digest::Digest;
 use smt::index::TreeIndex;
 use smt::node_template::HashNodeSMT;
-use smt::traits::{Mergeable, Paddable, ProofExtractable};
+use smt::traits::{Mergeable, Paddable, ProofExtractable, Serializable};
 use smt::{
     node_template,
     proof::{MerkleProof, RandomSamplingProof},
     traits::{InclusionProvable, RandomSampleable},
     tree::SparseMerkleTree,
 };
+use std::convert::TryFrom;
 
 type SMT<P> = SparseMerkleTree<P>;
 
@@ -40,8 +45,8 @@ pub fn commit_gen(
     base: u32,
     seed: &[u8],
     max_number_bits: usize,
-    tree_height: usize,
-) {
+    mdp_smt_height: usize,
+) -> Vec<u8> {
     let bitlength: usize = match base {
         2 => 1,
         4 => 2,
@@ -64,9 +69,49 @@ pub fn commit_gen(
     let wires: Vec<Vec<[u8; 32]>> = wires(&splits, &chains);
 
     // Step 5: SMT roots per MDP
-    let mdp_smt_roots = mdp_smt_roots(&wires, tree_height);
+    let mdp_smt_roots = mdp_smt_roots(&wires, mdp_smt_height);
 
-    let x = 6;
+    // Step 6: compute top salts
+    let salts = generate_subseeds::<Blake3>(TOP_SALT, seed, mdp_smt_roots.len());
+
+    // Step 7: KDF smt roots
+    let top_salted_roots: Vec<[u8; 32]> = mdp_smt_roots
+        .iter()
+        .enumerate()
+        .map(|(i, v)| salted_hash::<Blake3>(&salts[i], &v.serialize()))
+        .collect();
+
+    // Step 8: get shuffled indexes
+    let shuffled_indexes = deterministic_index_shuffling(
+        top_salted_roots.len(),
+        max_number_bits / bitlength,
+        <[u8; 32]>::try_from(seed).unwrap(),
+    );
+
+    // Step 9: Compute final root (HW commitment)
+    let hw_commitment = final_smt_root(&top_salted_roots, &shuffled_indexes, mdp_smt_height);
+    hw_commitment
+}
+
+fn final_smt_root(
+    top_salted_roots: &Vec<[u8; 32]>,
+    shuffled_indexes: &Vec<usize>,
+    tree_height: usize,
+) -> Vec<u8> {
+    let smt_leaves: Vec<(TreeIndex, node_template::HashNodeSMT<Blake3>)> = top_salted_roots
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            (
+                TreeIndex::new(tree_height, index_to_256bits(shuffled_indexes[i])),
+                node_template::HashNodeSMT::<Blake3>::new(s.to_vec()),
+            )
+        })
+        .collect();
+
+    let mut tree: SMT<node_template::HashNodeSMT<Blake3>> = SMT::new(tree_height);
+    tree.build(&smt_leaves);
+    tree.get_root_raw().serialize()
 }
 
 fn mdp_splits(mdp: &Vec<BigUint>, bitlength: usize) -> Vec<Vec<u8>> {
@@ -132,9 +177,25 @@ fn wires(splits: &Vec<Vec<u8>>, chains: &Vec<Vec<[u8; 32]>>) -> Vec<Vec<[u8; 32]
 
 #[test]
 fn test_hashwires() {
-    let max_digits = 12;
-    let base = 10;
+    let max_digits = 32;
+    let base = 4;
+    let mdp_tree_height = 4;
     let value = BigUint::from_str_radix("212", 4).unwrap();
     let seed = [0u8; 32];
-    commit_gen(&value, 4, &seed, 32, 4);
+    let hw_commit = commit_gen(&value, base, &seed, max_digits, mdp_tree_height);
+    assert_eq!(
+        hex::encode(hw_commit),
+        "7428334c5ab6190f0aea09543ad95458e9ead2b977737b0272bd335e4474eac8"
+    );
+
+    let max_digits = 32;
+    let base = 256;
+    let mdp_tree_height = 4;
+    let value = BigUint::from_str_radix("424345345453423", 10).unwrap();
+    let seed = [0u8; 32];
+    let hw_commit = commit_gen(&value, base, &seed, max_digits, mdp_tree_height);
+    assert_eq!(
+        hex::encode(hw_commit),
+        "7428334c5ab6190f0aea09543ad95458e9ead2b977737b0272bd335e4474eac8"
+    );
 }

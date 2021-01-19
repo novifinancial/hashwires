@@ -1,4 +1,6 @@
+use rand::SeedableRng;
 use rand::{Rng, RngCore};
+use rand_chacha::ChaCha12Rng;
 
 /// A variant of Durstenfeld's algorithm, which shuffles from lowest index to highest.
 #[derive(Debug, Default)]
@@ -35,11 +37,24 @@ impl<T> Shuffler<T> for Durstenfeld {
         for i in 0..shuffle_len {
             // TODO: document the range implementation,
             // so we can replicate the logic to other programming languages too.
-            let j = rng.gen_range(i..dlen + i);
+            let j = rng.gen_range(i..dlen);
             data.swap(i, j);
         }
         Ok(())
     }
+}
+
+pub fn deterministic_index_shuffling(
+    indexes_required: usize,
+    max_num: usize,
+    seed: [u8; 32],
+) -> Vec<usize> {
+    let mut input = (0..max_num).collect();
+    let mut rng = ChaCha12Rng::from_seed(seed);
+    let mut durstenfeld = Durstenfeld::default();
+    durstenfeld.shuffle(&mut input, indexes_required, &mut rng);
+    input.truncate(indexes_required);
+    input
 }
 
 #[test]
