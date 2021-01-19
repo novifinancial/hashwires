@@ -33,7 +33,7 @@ pub fn commit_gen(max_digits: u32, base: u32, value: &BigUint, seed: &[u8]) {
     };
 
     // Step 1: find mdp
-    let mdp = find_mdp(value, base);
+    let mdp: Vec<BigUint> = find_mdp(value, base);
     let mdp_len = mdp.len();
 
     // Step 2: split mdp values per base (bitlength digits)
@@ -43,7 +43,23 @@ pub fn commit_gen(max_digits: u32, base: u32, value: &BigUint, seed: &[u8]) {
         .collect();
 
     // Step 3: compute required hash chains
-    let chains = compute_hash_chains::<Blake3>(&seed, splits[0].len(), splits[0][0]);
+    let chains: Vec<Vec<[u8; 32]>> =
+        compute_hash_chains::<Blake3>(&seed, splits[0].len(), base, splits[0][0]);
+
+    // Step 4: wiring
+    let wires: Vec<Vec<[u8; 32]>> = wires(&splits, &chains);
+}
+
+fn wires(splits: &Vec<Vec<u8>>, chains: &Vec<Vec<[u8; 32]>>) -> Vec<Vec<[u8; 32]>> {
+    splits
+        .iter()
+        .map(|v| {
+            v.iter()
+                .enumerate()
+                .map(|(i, s)| chains[i][*s as usize])
+                .collect()
+        })
+        .collect()
 }
 
 #[test]
