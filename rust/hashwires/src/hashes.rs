@@ -2,7 +2,8 @@ use blake3::Hasher as Blake3;
 use digest::Digest;
 use std::convert::TryFrom;
 
-const LEAF_SALT: &[u8; 32] = b"01234567890123456789012345678901";
+pub const LEAF_SALT: &[u8; 32] = b"01234567890123456789012345678901";
+pub const TOP_SALT: &[u8; 32] = b"11234567890123456789012345678901";
 
 /// Computes a hash chain using a seed and number of iterations.
 #[inline]
@@ -41,7 +42,7 @@ pub fn compute_hash_chains<D: Digest>(
     most_significant_digit: u8,
 ) -> Vec<Vec<[u8; 32]>> {
     let mut output: Vec<Vec<[u8; 32]>> = Vec::with_capacity(size);
-    let seeds = generate_subseeds::<Blake3>(&LEAF_SALT, seed, size as u32);
+    let seeds = generate_subseeds::<Blake3>(&LEAF_SALT, seed, size);
 
     // optimization: first chain might be shorter (up to most_significant_digit in selected base)
     let first_chain = full_hash_chain::<Blake3>(&seeds[0], most_significant_digit as usize + 1);
@@ -57,11 +58,13 @@ pub fn compute_hash_chains<D: Digest>(
 /// TODO: make it more generic to work for any seed size
 #[inline]
 #[allow(dead_code)]
-pub fn salted_hash<D: Digest>(salt: &[u8], seed: &[u8], output: &mut [u8]) {
+pub fn salted_hash<D: Digest>(salt: &[u8], seed: &[u8]) -> [u8; 32] {
     let mut hasher = D::new();
     hasher.update(salt);
     hasher.update(seed);
+    let mut output = [0; 32];
     output.copy_from_slice(hasher.finalize().as_slice());
+    output
 }
 
 #[inline]
@@ -69,10 +72,10 @@ pub fn salted_hash<D: Digest>(salt: &[u8], seed: &[u8], output: &mut [u8]) {
 pub fn generate_subseeds<D: Digest>(
     salt: &[u8; 32],
     seed: &[u8],
-    num_of_seeds: u32,
+    num_of_seeds: usize,
 ) -> Vec<[u8; 32]> {
     let mut hasher = D::new();
-    let mut seeds = Vec::with_capacity(num_of_seeds as usize);
+    let mut seeds = Vec::with_capacity(num_of_seeds);
     for i in 0..num_of_seeds {
         hasher.update(salt);
         hasher.update(i.to_le_bytes());
