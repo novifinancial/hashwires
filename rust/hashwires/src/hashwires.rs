@@ -169,7 +169,13 @@ fn wires(splits: &Vec<Vec<u8>>, chains: &Vec<Vec<[u8; 32]>>) -> Vec<Vec<[u8; 32]
         .map(|v| {
             v.iter()
                 .enumerate()
-                .map(|(i, s)| chains[i][*s as usize])
+                .map(|(i, s)| {
+                    let mut index = i;
+                    if v.len() < chains.len() {
+                        index += 1;
+                    }
+                    chains[index][*s as usize]
+                })
                 .collect()
         })
         .collect()
@@ -189,13 +195,35 @@ fn test_hashwires() {
     );
 
     let max_digits = 32;
-    let base = 256;
-    let mdp_tree_height = 4;
-    let value = BigUint::from_str_radix("424345345453423", 10).unwrap();
+    let base = 16;
+    let mdp_tree_height = 3;
+    let value = BigUint::from_str_radix("1AB", 16).unwrap();
     let seed = [0u8; 32];
     let hw_commit = commit_gen(&value, base, &seed, max_digits, mdp_tree_height);
     assert_eq!(
         hex::encode(hw_commit),
-        "7428334c5ab6190f0aea09543ad95458e9ead2b977737b0272bd335e4474eac8"
+        "47548b6847b91cdeeebe3a47ffd8106eb043f3853934311d842dbcb1888573af"
+    );
+
+    let max_digits = 64;
+    let base = 256;
+    let mdp_tree_height = 3;
+    let value = BigUint::from_str_radix("18446744073709551615", 10).unwrap();
+    let seed = [0u8; 32];
+    let hw_commit = commit_gen(&value, base, &seed, max_digits, mdp_tree_height);
+    assert_eq!(
+        hex::encode(hw_commit),
+        "70c9980ad11b0f8feda258d67aa810c8640495be5d61dbca41b2a37b9df051e7"
+    );
+
+    let max_digits = 128;
+    let base = 256;
+    let mdp_tree_height = 4;
+    let value = BigUint::from_str_radix("23479534957845324957342523490585324", 10).unwrap();
+    let seed = [0u8; 32];
+    let hw_commit = commit_gen(&value, base, &seed, max_digits, mdp_tree_height);
+    assert_eq!(
+        hex::encode(hw_commit),
+        "d79266e03efeea066c7cc864553845b2e8f1e271caf6af8a84c1a415cd71305d"
     );
 }
