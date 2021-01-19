@@ -1,5 +1,8 @@
+use blake3::Hasher as Blake3;
 use digest::Digest;
 use std::convert::TryFrom;
+
+const LEAF_SALT: &[u8; 32] = b"01234567890123456789012345678901";
 
 /// Computes a hash chain using a seed and number of iterations.
 #[inline]
@@ -31,6 +34,26 @@ pub fn full_hash_chain<D: Digest>(seed: &[u8], size: usize) -> Vec<[u8; 32]> {
     output
 }
 
+pub fn compute_hash_chains<D: Digest>(
+    seed: &[u8],
+    size: usize,
+    most_significant_digit: u8,
+) -> Vec<Vec<[u8; 32]>> {
+    let mut output: Vec<Vec<[u8; 32]>> = Vec::with_capacity(size);
+    let seeds = generate_subseeds::<Blake3>(&LEAF_SALT, seed, size as u32);
+
+    // optimization: first chain might be shorter (up to most_significant_digit in selected base)
+    let first_chain = full_hash_chain::<Blake3>(&seeds[0], most_significant_digit as usize);
+    output.push(first_chain);
+
+    for i in 1..seeds.len() {
+        output.push(full_hash_chain::<Blake3>(&seeds[i], size));
+    }
+    output
+}
+
+/// Simple KDF hash(salt, i, seed)
+/// TODO: make it more generic to work for any seed size
 #[inline]
 #[allow(dead_code)]
 pub fn salted_hash<D: Digest>(salt: &[u8], seed: &[u8], output: &mut [u8]) {
@@ -40,11 +63,13 @@ pub fn salted_hash<D: Digest>(salt: &[u8], seed: &[u8], output: &mut [u8]) {
     output.copy_from_slice(hasher.finalize().as_slice());
 }
 
-/// Simple KDF hash(salt, i, seed)
-/// TODO: make it more generic to work for any seed size
 #[inline]
 #[allow(dead_code)]
-pub fn generate_subseeds<D: Digest>(salt: &[u8], seed: &[u8], num_of_seeds: u32) -> Vec<[u8; 32]> {
+pub fn generate_subseeds<D: Digest>(
+    salt: &[u8; 32],
+    seed: &[u8],
+    num_of_seeds: u32,
+) -> Vec<[u8; 32]> {
     let mut hasher = D::new();
     let mut seeds = Vec::with_capacity(num_of_seeds as usize);
     for i in 0..num_of_seeds {
@@ -91,4 +116,14 @@ fn test_full_hash_chain() {
         hex::encode(chain[2]),
         "df327beebc850ce697953eb99ecdf8f2979b5f103a73c45aa4b1415192032ef6"
     );
+}
+
+#[test]
+fn test_compute_hashchains() {
+    let seed = [0u8; 32];
+    let chains = compute_hash_chains::<Blake3>(&seed, 3, 2);
+    assert_eq!(chains.len(), 3);
+    assert_eq!(chains[0].len(), 2);
+    assert_eq!(chains[1].len(), 3);
+    assert_eq!(chains[2].len(), 3);
 }
