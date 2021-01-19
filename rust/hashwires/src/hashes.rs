@@ -37,17 +37,18 @@ pub fn full_hash_chain<D: Digest>(seed: &[u8], size: usize) -> Vec<[u8; 32]> {
 pub fn compute_hash_chains<D: Digest>(
     seed: &[u8],
     size: usize,
+    base: u32,
     most_significant_digit: u8,
 ) -> Vec<Vec<[u8; 32]>> {
     let mut output: Vec<Vec<[u8; 32]>> = Vec::with_capacity(size);
     let seeds = generate_subseeds::<Blake3>(&LEAF_SALT, seed, size as u32);
 
     // optimization: first chain might be shorter (up to most_significant_digit in selected base)
-    let first_chain = full_hash_chain::<Blake3>(&seeds[0], most_significant_digit as usize);
+    let first_chain = full_hash_chain::<Blake3>(&seeds[0], most_significant_digit as usize + 1);
     output.push(first_chain);
 
     for i in 1..seeds.len() {
-        output.push(full_hash_chain::<Blake3>(&seeds[i], size));
+        output.push(full_hash_chain::<Blake3>(&seeds[i], base as usize));
     }
     output
 }
@@ -121,7 +122,7 @@ fn test_full_hash_chain() {
 #[test]
 fn test_compute_hashchains() {
     let seed = [0u8; 32];
-    let chains = compute_hash_chains::<Blake3>(&seed, 3, 2);
+    let chains = compute_hash_chains::<Blake3>(&seed, 3, 4, 2);
     assert_eq!(chains.len(), 3);
     assert_eq!(chains[0].len(), 2);
     assert_eq!(chains[1].len(), 3);
