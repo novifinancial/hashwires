@@ -223,10 +223,27 @@ fn test_mdp() {
 
 #[test]
 fn test_coef() {
+    // base2 = 2^1
+    let number = BigUint::from_str_radix("0010101111010101", 2).unwrap();
+    let splits = value_split_per_base(&number, 1);
+    assert_eq!(splits, vec![1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1]);
+
+    // base4 = 2^2
     let number = BigUint::from_str_radix("0010101111010101", 2).unwrap();
     let splits = value_split_per_base(&number, 2);
     assert_eq!(splits, vec![2, 2, 3, 3, 1, 1, 1]);
 
+    // base4 = 2^2
+    let number = BigUint::from_str_radix("312", 4).unwrap();
+    let splits = value_split_per_base(&number, 2);
+    assert_eq!(splits, vec![3, 1, 2]);
+
+    // base16 = 2^4
+    let number = BigUint::from_str_radix("D55", 16).unwrap();
+    let splits = value_split_per_base(&number, 4);
+    assert_eq!(splits, vec![13, 5, 5]);
+
+    // base256 = 2^8
     // 16777209 (decimal) = 1111_1111_1111_1111_1111_1001 (binary)
     let number = &BigUint::from_str_radix("16777209", 10).unwrap();
     let splits = value_split_per_base(&number, 8);
