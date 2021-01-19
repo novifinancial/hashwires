@@ -208,12 +208,12 @@ fn test_hashwires() {
     let max_digits = 64;
     let base = 256;
     let mdp_tree_height = 3;
-    let value = BigUint::from_str_radix("18446744073709551615", 10).unwrap();
+    let value = BigUint::from_str_radix("18446744073709551614", 10).unwrap();
     let seed = [0u8; 32];
     let hw_commit = commit_gen(&value, base, &seed, max_digits, mdp_tree_height);
     assert_eq!(
         hex::encode(hw_commit),
-        "70c9980ad11b0f8feda258d67aa810c8640495be5d61dbca41b2a37b9df051e7"
+        "fd9c9d4d5d7a491a19fe9a4e223ffd9302d25acc8a5e2a82fa49131c1c4ffc53"
     );
 
     let max_digits = 128;

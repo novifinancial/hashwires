@@ -32,7 +32,7 @@ pub fn hw_commitment_gen_base256(c: &mut Criterion) {
     let max_digits = 64;
     let base = 256;
     let mdp_tree_height = 3;
-    let value = BigUint::from_str_radix("18446744073709551615", 10).unwrap();
+    let value = BigUint::from_str_radix("18446744073709551614", 10).unwrap();
     let seed = [0u8; 32];
 
     c.bench_function("hw_commitment_gen_base526", |bench| {
