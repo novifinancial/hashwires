@@ -11,6 +11,10 @@ bench = false
 name = "hw_bench"
 harness = false
 
+[[bench]]
+name = "bp_bench"
+harness = false
+
 [dependencies]
 blake2 = "0.9.1"
 num-bigint = "0.3.0"
@@ -29,3 +33,7 @@ features = ["rayon"]
 
 [dev-dependencies]
 criterion = "0.3.3"
+bulletproofs = "2.0.0"
+curve25519-dalek = "2.1.0"
+merlin = "2.0.0"
+
