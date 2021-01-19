@@ -4,6 +4,13 @@ version = "0.0.1"
 authors = ["Konstantinos Chalkias <kostascrypto@fb.com>", "Yolan Romailler <yromailler@fb.com>"]
 edition = "2018"
 
+[lib]
+bench = false
+
+[[bench]]
+name = "hw_bench"
+harness = false
+
 [dependencies]
 blake2 = "0.9.1"
 num-bigint = "0.3.0"
@@ -19,3 +26,6 @@ smt = { path = "../smt", version = "0.1.0" }
 [dependencies.blake3]
 version = "0.3.7"
 features = ["rayon"]
+
+[dev-dependencies]
+criterion = "0.3.3"

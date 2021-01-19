@@ -1,5 +1,5 @@
 mod dp;
 mod hashes;
-mod hashwires;
+pub mod hashwires;
 mod padding;
 mod shuffle;
