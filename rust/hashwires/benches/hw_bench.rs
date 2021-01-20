@@ -52,11 +52,37 @@ pub fn hw_commitment_gen_base256_max(c: &mut Criterion) {
     });
 }
 
+pub fn hw_commitment_gen_base256_minimum_value(c: &mut Criterion) {
+    let max_digits = 64;
+    let base = 256;
+    let mdp_tree_height = 3;
+    let value = BigUint::from_str_radix("1", 10).unwrap();
+    let seed = [0u8; 32];
+
+    c.bench_function("hw_commitment_gen_base256_minimum_value", |bench| {
+        bench.iter(|| commit_gen(&value, base, &seed, max_digits, mdp_tree_height))
+    });
+}
+
+pub fn hw_commitment_gen_base256_1million(c: &mut Criterion) {
+    let max_digits = 64;
+    let base = 256;
+    let mdp_tree_height = 3;
+    let value = BigUint::from_str_radix("1000000", 10).unwrap();
+    let seed = [0u8; 32];
+
+    c.bench_function("hw_commitment_gen_base256_1million", |bench| {
+        bench.iter(|| commit_gen(&value, base, &seed, max_digits, mdp_tree_height))
+    });
+}
+
 criterion_group!(
     hw_group,
     hw_commitment_gen_base4,
     hw_commitment_gen_base16,
     hw_commitment_gen_base16_max,
     hw_commitment_gen_base256_max,
+    hw_commitment_gen_base256_minimum_value,
+    hw_commitment_gen_base256_1million,
 );
 criterion_main!(hw_group);

@@ -32,5 +32,26 @@ pub fn bp_proof_gen(c: &mut Criterion) {
     });
 }
 
-criterion_group!(bp_group, bp_proof_gen,);
+pub fn bp_proof_gen_small_value(c: &mut Criterion) {
+    let pc_gens = PedersenGens::default();
+    let bp_gens = BulletproofGens::new(BIT_SIZE, 1);
+    let mut prover_transcript = Transcript::new(&[]);
+    let secret: u64 = 1u64;
+    let blinding: Scalar = Scalar::from(11u64);
+
+    c.bench_function("bp_proof_gen_small_value", |bench| {
+        bench.iter(|| {
+            RangeProof::prove_single(
+                &bp_gens,
+                &pc_gens,
+                &mut prover_transcript,
+                secret,
+                &blinding,
+                BIT_SIZE,
+            )
+        })
+    });
+}
+
+criterion_group!(bp_group, bp_proof_gen, bp_proof_gen_small_value);
 criterion_main!(bp_group);

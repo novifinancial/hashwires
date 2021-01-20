@@ -36,4 +36,3 @@ criterion = "0.3.3"
 bulletproofs = "2.0.0"
 curve25519-dalek = "2.1.0"
 merlin = "2.0.0"
-
