@@ -19,6 +19,7 @@ use smt::{
     tree::SparseMerkleTree,
 };
 use std::convert::TryFrom;
+use std::fmt::Error;
 
 type SMT<P> = SparseMerkleTree<P>;
 
@@ -40,6 +41,58 @@ type SMT<P> = SparseMerkleTree<P>;
 //     // TODO compute hashchains
 // }
 
+// pub fn bigger_than_proof_gen(
+//     proving_value: &BigUint,
+//     value: &BigUint,
+//     base: u32,
+//     seed: &[u8],
+//     max_number_bits: usize,
+//     mdp_smt_height: usize,
+// ) -> Vec<u8> {
+//     // Step 0: compute base's bitlength
+//     let bitlength = compute_bitlength(base);
+//
+//     // Step 1: find MDP
+//     let mdp: Vec<BigUint> = find_mdp(value, base);
+//
+//     // Step A: pick mdp index
+//     let mdp_index = pick_mdp_index(proving_value, &mdp);
+//
+//     // Step 2: split MDP values per base (bitlength digits)
+//     let splits: Vec<Vec<u8>> = mdp_splits(&mdp, bitlength);
+//
+//     // Step 3: compute required hash chains
+//     let chains: Vec<Vec<[u8; 32]>> =
+//         compute_hash_chains::<Blake3>(&seed, splits[0].len(), base, splits[0][0]);
+//
+//     // Step 4: MDP to hashchain(s) position wiring
+//     let wires: Vec<Vec<[u8; 32]>> = wires(&splits, &chains);
+//
+//     // Step 5: SMT roots per MDP
+//     let mdp_smt_roots = mdp_smt_roots(&wires, mdp_smt_height);
+//
+//     // Step 6: compute top salts
+//     let salts = generate_subseeds::<Blake3>(TOP_SALT, seed, mdp_smt_roots.len());
+//
+//     // Step 7: KDF smt roots
+//     let top_salted_roots: Vec<[u8; 32]> = mdp_smt_roots
+//         .iter()
+//         .enumerate()
+//         .map(|(i, v)| salted_hash::<Blake3>(&salts[i], &v.serialize()))
+//         .collect();
+//
+//     // Step 8: get shuffled indexes
+//     let shuffled_indexes = deterministic_index_shuffling(
+//         top_salted_roots.len(),
+//         max_number_bits / bitlength,
+//         <[u8; 32]>::try_from(seed).unwrap(),
+//     );
+//
+//     // Step 9: Compute final root (HW commitment)
+//     let hw_commitment = final_smt_root(&top_salted_roots, &shuffled_indexes, mdp_smt_height);
+//     hw_commitment
+// }
+
 pub fn commit_gen(
     value: &BigUint,
     base: u32,
@@ -47,13 +100,8 @@ pub fn commit_gen(
     max_number_bits: usize,
     mdp_smt_height: usize,
 ) -> Vec<u8> {
-    let bitlength: usize = match base {
-        2 => 1,
-        4 => 2,
-        16 => 4,
-        256 => 8,
-        _ => panic!(),
-    };
+    // Step 0: compute base's bitlength
+    let bitlength = compute_bitlength(base);
 
     // Step 1: find MDP
     let mdp: Vec<BigUint> = find_mdp(value, base);
@@ -91,6 +139,28 @@ pub fn commit_gen(
     // Step 9: Compute final root (HW commitment)
     let hw_commitment = final_smt_root(&top_salted_roots, &shuffled_indexes, mdp_smt_height);
     hw_commitment
+}
+
+/// find the mdp index where proving_value <= mdp[i]
+/// TODO: use binary search
+fn pick_mdp_index(proving_value: &BigUint, mdp: &Vec<BigUint>) -> Result<usize, &'static str> {
+    for i in (0..mdp.len()).rev() {
+        if proving_value <= &mdp[i] {
+            return Ok(i);
+        }
+    }
+    Err("Proving value is bigger than the issued value")
+}
+
+/// Compute base's bitlength.
+fn compute_bitlength(base: u32) -> usize {
+    match base {
+        2 => 1,
+        4 => 2,
+        16 => 4,
+        256 => 8,
+        _ => panic!(),
+    }
 }
 
 fn final_smt_root(
@@ -226,4 +296,25 @@ fn test_hashwires() {
         hex::encode(hw_commit),
         "d79266e03efeea066c7cc864553845b2e8f1e271caf6af8a84c1a415cd71305d"
     );
+}
+
+#[test]
+fn test_pick_mdp_index() {
+    let mdp = vec![
+        BigUint::from(3143u16),
+        BigUint::from(3139u16),
+        BigUint::from(3099u16),
+        BigUint::from(2999u16),
+    ];
+    assert_eq!(pick_mdp_index(&BigUint::from(3142u16), &mdp).unwrap(), 0);
+    assert_eq!(pick_mdp_index(&BigUint::from(3140u16), &mdp).unwrap(), 0);
+
+    assert_eq!(pick_mdp_index(&BigUint::from(3139u16), &mdp).unwrap(), 1);
+    assert_eq!(pick_mdp_index(&BigUint::from(3100u16), &mdp).unwrap(), 1);
+
+    assert_eq!(pick_mdp_index(&BigUint::from(3099u16), &mdp).unwrap(), 2);
+    assert_eq!(pick_mdp_index(&BigUint::from(3000u16), &mdp).unwrap(), 2);
+
+    assert_eq!(pick_mdp_index(&BigUint::from(2999u16), &mdp).unwrap(), 3);
+    assert_eq!(pick_mdp_index(&BigUint::from(0u16), &mdp).unwrap(), 3);
 }
