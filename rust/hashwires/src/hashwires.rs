@@ -41,57 +41,64 @@ type SMT<P> = SparseMerkleTree<P>;
 //     // TODO compute hashchains
 // }
 
-// pub fn bigger_than_proof_gen(
-//     proving_value: &BigUint,
-//     value: &BigUint,
-//     base: u32,
-//     seed: &[u8],
-//     max_number_bits: usize,
-//     mdp_smt_height: usize,
-// ) -> Vec<u8> {
-//     // Step 0: compute base's bitlength
-//     let bitlength = compute_bitlength(base);
-//
-//     // Step 1: find MDP
-//     let mdp: Vec<BigUint> = find_mdp(value, base);
-//
-//     // Step A: pick mdp index
-//     let mdp_index = pick_mdp_index(proving_value, &mdp);
-//
-//     // Step 2: split MDP values per base (bitlength digits)
-//     let splits: Vec<Vec<u8>> = mdp_splits(&mdp, bitlength);
-//
-//     // Step 3: compute required hash chains
-//     let chains: Vec<Vec<[u8; 32]>> =
-//         compute_hash_chains::<Blake3>(&seed, splits[0].len(), base, splits[0][0]);
-//
-//     // Step 4: MDP to hashchain(s) position wiring
-//     let wires: Vec<Vec<[u8; 32]>> = wires(&splits, &chains);
-//
-//     // Step 5: SMT roots per MDP
-//     let mdp_smt_roots = mdp_smt_roots(&wires, mdp_smt_height);
-//
-//     // Step 6: compute top salts
-//     let salts = generate_subseeds::<Blake3>(TOP_SALT, seed, mdp_smt_roots.len());
-//
-//     // Step 7: KDF smt roots
-//     let top_salted_roots: Vec<[u8; 32]> = mdp_smt_roots
-//         .iter()
-//         .enumerate()
-//         .map(|(i, v)| salted_hash::<Blake3>(&salts[i], &v.serialize()))
-//         .collect();
-//
-//     // Step 8: get shuffled indexes
-//     let shuffled_indexes = deterministic_index_shuffling(
-//         top_salted_roots.len(),
-//         max_number_bits / bitlength,
-//         <[u8; 32]>::try_from(seed).unwrap(),
-//     );
-//
-//     // Step 9: Compute final root (HW commitment)
-//     let hw_commitment = final_smt_root(&top_salted_roots, &shuffled_indexes, mdp_smt_height);
-//     hw_commitment
-// }
+pub fn bigger_than_proof_gen(
+    proving_value: &BigUint,
+    value: &BigUint,
+    base: u32,
+    seed: &[u8],
+    max_number_bits: usize,
+    mdp_smt_height: usize,
+) -> Vec<u8> {
+    // Step 0: compute base's bitlength
+    let bitlength = compute_bitlength(base);
+
+    // Step 1: find MDP
+    let mdp: Vec<BigUint> = find_mdp(value, base);
+
+    // Step 2: split MDP values per base (bitlength digits)
+    let splits: Vec<Vec<u8>> = mdp_splits(&mdp, bitlength);
+
+    // Step 3: compute required hashchains
+    let chains: Vec<Vec<[u8; 32]>> =
+        compute_hash_chains::<Blake3>(&seed, splits[0].len(), base, splits[0][0]);
+
+    // Step A: pick mdp index
+    // TODO remove unwrap()
+    let mdp_index = pick_mdp_index(proving_value, &mdp).unwrap();
+
+    // Step B: split proving value per base (bitlength digits)
+    let proving_value_split = value_split_per_base(proving_value, bitlength);
+
+    // Step C: pick hachchain nodes for the proving value
+    let chain_nodes = proving_value_chain_nodes(&chains, &splits, &proving_value_split, mdp_index);
+
+    // Step 4: MDP to hashchain(s) position wiring
+    let wires: Vec<Vec<[u8; 32]>> = wires(&splits, &chains);
+
+    // Step 5: SMT roots per MDP
+    let mdp_smt_roots = mdp_smt_roots(&wires, mdp_smt_height);
+
+    // Step 6: compute top salts
+    let salts = generate_subseeds::<Blake3>(TOP_SALT, seed, mdp_smt_roots.len());
+
+    // Step 7: KDF smt roots
+    let top_salted_roots: Vec<[u8; 32]> = mdp_smt_roots
+        .iter()
+        .enumerate()
+        .map(|(i, v)| salted_hash::<Blake3>(&salts[i], &v.serialize()))
+        .collect();
+
+    // Step 8: get shuffled indexes
+    let shuffled_indexes = deterministic_index_shuffling(
+        top_salted_roots.len(),
+        max_number_bits / bitlength,
+        <[u8; 32]>::try_from(seed).unwrap(),
+    );
+
+    // Step 9: Compute final root (HW commitment)
+    let hw_commitment = final_smt_root(&top_salted_roots, &shuffled_indexes, mdp_smt_height);
+    hw_commitment
+}
 
 pub fn commit_gen(
     value: &BigUint,
@@ -139,6 +146,24 @@ pub fn commit_gen(
     // Step 9: Compute final root (HW commitment)
     let hw_commitment = final_smt_root(&top_salted_roots, &shuffled_indexes, mdp_smt_height);
     hw_commitment
+}
+
+/// Get required chain nodes for proofs
+fn proving_value_chain_nodes(
+    chains: &Vec<Vec<[u8; 32]>>,
+    mdp_splits: &Vec<Vec<u8>>,
+    proving_value_split: &Vec<u8>,
+    mdp_index: usize,
+) -> Vec<[u8; 32]> {
+    proving_value_split
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            let chain_index = i + chains.len() - proving_value_split.len();
+            let mdp_split_index = i + mdp_splits[mdp_index].len() - proving_value_split.len();
+            chains[chain_index][(mdp_splits[mdp_index][mdp_split_index] - *s) as usize]
+        })
+        .collect()
 }
 
 /// find the mdp index where proving_value <= mdp[i]
@@ -258,7 +283,8 @@ fn test_hashwires() {
     let mdp_tree_height = 4;
     let value = BigUint::from_str_radix("212", 4).unwrap();
     let seed = [0u8; 32];
-    let hw_commit = commit_gen(&value, base, &seed, max_digits, mdp_tree_height);
+    let proving_value = BigUint::from_str_radix("201", 4).unwrap();
+    let hw_commit = bigger_than_proof_gen(&proving_value, &value, base, &seed, max_digits, mdp_tree_height);
     assert_eq!(
         hex::encode(hw_commit),
         "7428334c5ab6190f0aea09543ad95458e9ead2b977737b0272bd335e4474eac8"
