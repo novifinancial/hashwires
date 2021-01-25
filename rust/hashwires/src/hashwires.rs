@@ -12,6 +12,7 @@ use digest::Digest;
 use smt::index::TreeIndex;
 use smt::node_template::HashNodeSMT;
 use smt::traits::{Mergeable, Paddable, ProofExtractable, Serializable};
+use smt::utils::{print_output, set_pos_best};
 use smt::{
     node_template,
     proof::{MerkleProof, RandomSamplingProof},
@@ -62,6 +63,9 @@ pub fn bigger_than_proof_gen(
     let chains: Vec<Vec<[u8; 32]>> =
         compute_hash_chains::<Blake3>(&seed, splits[0].len(), base, splits[0][0]);
 
+    // Step 4: MDP to hashchain(s) position wiring
+    let wires: Vec<Vec<[u8; 32]>> = wires(&splits, &chains);
+
     // Step A: pick mdp index
     // TODO remove unwrap()
     let mdp_index = pick_mdp_index(proving_value, &mdp).unwrap();
@@ -69,14 +73,9 @@ pub fn bigger_than_proof_gen(
     // Step B: split proving value per base (bitlength digits)
     let proving_value_split = value_split_per_base(proving_value, bitlength);
 
-    // Step C: pick hachchain nodes for the proving value
-    let chain_nodes = proving_value_chain_nodes(&chains, &splits, &proving_value_split, mdp_index);
-
-    // Step 4: MDP to hashchain(s) position wiring
-    let wires: Vec<Vec<[u8; 32]>> = wires(&splits, &chains);
-
     // Step 5: SMT roots per MDP
     let mdp_smt_roots = mdp_smt_roots(&wires, mdp_smt_height);
+    mdp_smt_roots_and_proof(&wires, mdp_smt_height, mdp_index, proving_value_split.len());
 
     // Step 6: compute top salts
     let salts = generate_subseeds::<Blake3>(TOP_SALT, seed, mdp_smt_roots.len());
@@ -97,6 +96,21 @@ pub fn bigger_than_proof_gen(
 
     // Step 9: Compute final root (HW commitment)
     let hw_commitment = final_smt_root(&top_salted_roots, &shuffled_indexes, mdp_smt_height);
+
+    // ---- Proof generation ----
+    // Step A: pick mdp index
+    // TODO remove unwrap()
+    let mdp_index = pick_mdp_index(proving_value, &mdp).unwrap();
+
+    // Step B: split proving value per base (bitlength digits)
+    let proving_value_split = value_split_per_base(proving_value, bitlength);
+
+    // Step C: pick hachchain nodes for the proving value
+    let chain_nodes = proving_value_chain_nodes(&chains, &splits, &proving_value_split, mdp_index);
+
+    // Step D: MDP chains SMT composite proof
+    // let mdp_chain_smt_proof =
+
     hw_commitment
 }
 
@@ -193,17 +207,18 @@ fn final_smt_root(
     shuffled_indexes: &Vec<usize>,
     tree_height: usize,
 ) -> Vec<u8> {
-    let smt_leaves: Vec<(TreeIndex, node_template::HashNodeSMT<Blake3>)> = top_salted_roots
+    let mut smt_leaves: Vec<(TreeIndex, node_template::HashNodeSMT<Blake3>)> = top_salted_roots
         .iter()
         .enumerate()
         .map(|(i, s)| {
             (
-                TreeIndex::new(tree_height, index_to_256bits(shuffled_indexes[i])),
+                set_pos_best(tree_height, shuffled_indexes[i] as u32),
                 node_template::HashNodeSMT::<Blake3>::new(s.to_vec()),
             )
         })
         .collect();
 
+    smt_leaves.sort_by(|(t1, _), (t2, _)| t1.cmp(t2));
     let mut tree: SMT<node_template::HashNodeSMT<Blake3>> = SMT::new(tree_height);
     tree.build(&smt_leaves);
     tree.get_root_raw().serialize()
@@ -213,6 +228,48 @@ fn mdp_splits(mdp: &Vec<BigUint>, bitlength: usize) -> Vec<Vec<u8>> {
     mdp.iter()
         .map(|v| value_split_per_base(v, bitlength))
         .collect()
+}
+
+fn mdp_smt_roots_and_proof(
+    wires: &Vec<Vec<[u8; 32]>>,
+    tree_height: usize,
+    mdp_index: usize,
+    proving_value_split_size: usize,
+) -> (
+    Vec<smt::node_template::HashNodeSMT<blake3::Hasher>>,
+    Vec<u8>,
+) {
+    let smt_leaves: Vec<Vec<(TreeIndex, node_template::HashNodeSMT<Blake3>)>> = wires
+        .iter()
+        .map(|v| {
+            v.iter()
+                .enumerate()
+                .map(|(i, s)| {
+                    (
+                        set_pos_best(tree_height, i as u32),
+                        node_template::HashNodeSMT::<Blake3>::new(s.to_vec()),
+                    )
+                })
+                .collect()
+        })
+        .collect();
+
+    let mut smt_roots = Vec::with_capacity(smt_leaves.len());
+    let mut proof: Vec<u8> = Vec::new();
+    smt_leaves.iter().enumerate().for_each(|(i, v)| {
+        let mut tree: SMT<node_template::HashNodeSMT<Blake3>> = SMT::new(tree_height);
+        tree.build(v);
+        smt_roots.push(tree.get_root_raw().clone());
+        if i == mdp_index {
+            let mut inclusion_list = vec![];
+            &v[v.len() - proving_value_split_size..v.len()]
+                .iter()
+                .for_each(|(t, v)| {
+                    inclusion_list.push(*t);
+                });
+        }
+    });
+    (smt_roots, proof)
 }
 
 fn mdp_smt_roots(
@@ -226,7 +283,7 @@ fn mdp_smt_roots(
                 .enumerate()
                 .map(|(i, s)| {
                     (
-                        TreeIndex::new(tree_height, index_to_256bits(i)),
+                        set_pos_best(tree_height, i as u32),
                         node_template::HashNodeSMT::<Blake3>::new(s.to_vec()),
                     )
                 })
@@ -241,21 +298,6 @@ fn mdp_smt_roots(
         smt_roots.push(tree.get_root_raw().clone());
     });
     smt_roots
-}
-
-// TODO: this a PoC temporary untested (probably wrong) impl.
-fn index_to_256bits(i: usize) -> [u8; 32] {
-    let mut output = [0u8; 32];
-    output[0] = reverse_order_of_byte(i.to_le_bytes()[0]);
-    output
-}
-
-// TODO there exist faster approaches, ie via look up tables.
-fn reverse_order_of_byte(mut b: u8) -> u8 {
-    b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
-    b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
-    b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
-    b
 }
 
 fn wires(splits: &Vec<Vec<u8>>, chains: &Vec<Vec<[u8; 32]>>) -> Vec<Vec<[u8; 32]>> {
@@ -284,10 +326,17 @@ fn test_hashwires() {
     let value = BigUint::from_str_radix("212", 4).unwrap();
     let seed = [0u8; 32];
     let proving_value = BigUint::from_str_radix("201", 4).unwrap();
-    let hw_commit = bigger_than_proof_gen(&proving_value, &value, base, &seed, max_digits, mdp_tree_height);
+    let hw_commit = bigger_than_proof_gen(
+        &proving_value,
+        &value,
+        base,
+        &seed,
+        max_digits,
+        mdp_tree_height,
+    );
     assert_eq!(
         hex::encode(hw_commit),
-        "7428334c5ab6190f0aea09543ad95458e9ead2b977737b0272bd335e4474eac8"
+        "7dda9ebf56c447b6fc5b25cee32f8e1b338fc8df383cbbd3b2da3bcee70893de"
     );
 
     let max_digits = 32;
@@ -298,7 +347,7 @@ fn test_hashwires() {
     let hw_commit = commit_gen(&value, base, &seed, max_digits, mdp_tree_height);
     assert_eq!(
         hex::encode(hw_commit),
-        "47548b6847b91cdeeebe3a47ffd8106eb043f3853934311d842dbcb1888573af"
+        "e993b4b34c2541815ce9d945f7cf12aa20db421b9f7558e84e25e18bd8692051"
     );
 
     let max_digits = 64;
@@ -309,7 +358,7 @@ fn test_hashwires() {
     let hw_commit = commit_gen(&value, base, &seed, max_digits, mdp_tree_height);
     assert_eq!(
         hex::encode(hw_commit),
-        "fd9c9d4d5d7a491a19fe9a4e223ffd9302d25acc8a5e2a82fa49131c1c4ffc53"
+        "5dbb0f45d044086bb149c6b5aa52b526a91f9d4761d727dfabcef0eb9ebfa5cd"
     );
 
     let max_digits = 128;
@@ -320,8 +369,33 @@ fn test_hashwires() {
     let hw_commit = commit_gen(&value, base, &seed, max_digits, mdp_tree_height);
     assert_eq!(
         hex::encode(hw_commit),
-        "d79266e03efeea066c7cc864553845b2e8f1e271caf6af8a84c1a415cd71305d"
+        "cec8e4a8abd98c984a91a37171310650861aa99b68e0011f7f73fd406d806fd6"
     );
+}
+
+#[test]
+fn testsmt() {
+    let tree_height = 4;
+    let mut tree: SMT<node_template::HashNodeSMT<Blake3>> = SMT::new(tree_height);
+    let mut v = vec![];
+    let a = (
+        set_pos_best(tree_height, 0),
+        node_template::HashNodeSMT::<Blake3>::new(vec![1; 32]),
+    );
+    let b = (
+        set_pos_best(tree_height, 1),
+        node_template::HashNodeSMT::<Blake3>::new(vec![2; 32]),
+    );
+    let c = (
+        set_pos_best(tree_height, 15),
+        node_template::HashNodeSMT::<Blake3>::new(vec![3; 32]),
+    );
+    v.push(a);
+    v.push(b);
+    v.push(c);
+    tree.build(&v);
+    println!("{}", tree.get_leaves().len());
+    print_output(&tree);
 }
 
 #[test]
