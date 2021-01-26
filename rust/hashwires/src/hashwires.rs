@@ -74,8 +74,8 @@ pub fn bigger_than_proof_gen(
     let proving_value_split = value_split_per_base(proving_value, bitlength);
 
     // Step 5: SMT roots per MDP
-    let mdp_smt_roots = mdp_smt_roots(&wires, mdp_smt_height);
-    mdp_smt_roots_and_proof(&wires, mdp_smt_height, mdp_index, proving_value_split.len());
+    let (mdp_smt_roots, inclusion_proofs) =
+        mdp_smt_roots_and_proof(&wires, mdp_smt_height, mdp_index, proving_value_split.len());
 
     // Step 6: compute top salts
     let salts = generate_subseeds::<Blake3>(TOP_SALT, seed, mdp_smt_roots.len());
@@ -267,6 +267,13 @@ fn mdp_smt_roots_and_proof(
                 .for_each(|(t, v)| {
                     inclusion_list.push(*t);
                 });
+            let inclusion_proof =
+                MerkleProof::<node_template::HashNodeSMT<Blake3>>::generate_inclusion_proof(
+                    &tree,
+                    &inclusion_list,
+                )
+                .unwrap();
+            proof = inclusion_proof.serialize();
         }
     });
     (smt_roots, proof)
