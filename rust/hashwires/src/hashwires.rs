@@ -1,6 +1,7 @@
 use crate::dp::{find_dp_u32, find_mdp, value_split_per_base};
 use crate::hashes::{
-    compute_hash_chains, full_hash_chain, generate_subseeds, plr_accumulator, salted_hash, TOP_SALT,
+    compute_hash_chains, full_hash_chain, generate_subseeds, hash_chain, plr_accumulator,
+    salted_hash, TOP_SALT,
 };
 use crate::padding::num_base_digits;
 use blake3::Hasher as Blake3;
@@ -107,7 +108,7 @@ pub fn bigger_than_proof_gen<D: Digest>(
         mdp_index,
     );
 
-    // Step C: pick hachchain nodes for the proving value
+    // Step C: pick hashchain nodes for the proving value
     let chain_nodes = proving_value_chain_nodes(&chains, &splits, &proving_value_split, mdp_index);
 
     (
@@ -117,6 +118,53 @@ pub fn bigger_than_proof_gen<D: Digest>(
         salts[mdp_index],
         hw_commitment.1,
     )
+}
+
+pub fn proof_verify<D: Digest>(
+    proving_value: &BigUint,
+    base: u32,
+    commitment: Vec<u8>,
+    plr_padding: Option<[u8; 32]>,
+    chain_nodes: Vec<[u8; 32]>,
+    mdp_salt: [u8; 32],
+    smt_inclusion_proof: Vec<u8>,
+) -> bool {
+    let bitlength = compute_bitlength(base);
+    let requested_value_split = value_split_per_base(proving_value, bitlength);
+    let mdp_chain_nodes: Vec<[u8; 32]> = chain_nodes
+        .iter()
+        .enumerate()
+        .map(|(i, v)| hash_chain::<D>(v, requested_value_split[i] as usize))
+        .collect();
+
+    let mut hasher = D::new();
+
+    match plr_padding {
+        Some(p) => {
+            hasher.update(&p);
+        }
+        None => {}
+    }
+
+    let mut mdp_root = [0; 32];
+    mdp_chain_nodes.iter().enumerate().for_each(|(i, v)| {
+        if i != 0 {
+            hasher.update(&mdp_root);
+        }
+        hasher.update(v);
+        mdp_root.copy_from_slice(hasher.finalize_reset().as_slice());
+    });
+
+    let salted_mdp_root = salted_hash::<D>(&mdp_salt, &mdp_root);
+
+    // Decode the Merkle proof.
+    let deserialized_proof =
+        MerkleProof::<HashNodeSMT<Blake3>>::deserialize(&smt_inclusion_proof).unwrap();
+
+    let commitment_node = HashNodeSMT::<Blake3>::new(commitment);
+    let smt_mdp_node = HashNodeSMT::<Blake3>::new(salted_mdp_root.to_vec());
+
+    deserialized_proof.verify_inclusion_proof(&[smt_mdp_node], &commitment_node)
 }
 
 pub fn commit_gen<D: Digest>(
@@ -260,45 +308,6 @@ fn final_smt_root_and_proof<D: Digest>(
     (tree.get_root_raw().serialize(), smt_proof)
 }
 
-// let smt_leaves: Vec<Vec<(TreeIndex, node_template::HashNodeSMT<Blake3>)>> = wires
-// .iter()
-// .map(|v| {
-// v.iter()
-// .enumerate()
-// .map(|(i, s)| {
-// (
-// set_pos_best(tree_height, i as u32),
-// node_template::HashNodeSMT::<Blake3>::new(s.to_vec()),
-// )
-// })
-// .collect()
-// })
-// .collect();
-
-// let mut smt_roots = Vec::with_capacity(smt_leaves.len());
-// let mut proof: Vec<u8> = Vec::new();
-// smt_leaves.iter().enumerate().for_each(|(i, v)| {
-// let mut tree: SMT<node_template::HashNodeSMT<Blake3>> = SMT::new(tree_height);
-// tree.build(v);
-// smt_roots.push(tree.get_root_raw().clone());
-// if i == mdp_index {
-// let mut inclusion_list = vec![];
-// &v[v.len() - proving_value_split_size..v.len()]
-// .iter()
-// .for_each(|(t, v)| {
-// inclusion_list.push(*t);
-// });
-// let inclusion_proof =
-// MerkleProof::<node_template::HashNodeSMT<Blake3>>::generate_inclusion_proof(
-// &tree,
-// &inclusion_list,
-// )
-// .unwrap();
-// proof = inclusion_proof.serialize();
-// }
-// });
-// (smt_roots, proof)
-
 fn mdp_splits(mdp: &Vec<BigUint>, bitlength: usize) -> Vec<Vec<u8>> {
     mdp.iter()
         .map(|v| value_split_per_base(v, bitlength))
@@ -366,9 +375,18 @@ fn test_hashwires() {
         mdp_tree_height,
     );
     assert_eq!(
-        hex::encode(hw_commit_and_proof.0),
+        hex::encode(&hw_commit_and_proof.0),
         "04b481bd8afc7316b3df5c85a01f50619d95119d4698e33d58b813a2453c2971"
     );
+    assert!(proof_verify::<Blake3>(
+        &proving_value,
+        base,
+        hw_commit_and_proof.0,
+        hw_commit_and_proof.1,
+        hw_commit_and_proof.2,
+        hw_commit_and_proof.3,
+        hw_commit_and_proof.4
+    ));
 
     let max_digits = 32;
     let base = 16;

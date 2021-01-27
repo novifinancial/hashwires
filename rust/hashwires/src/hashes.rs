@@ -53,14 +53,16 @@ pub fn plr_accumulator<D: Digest>(
 /// Computes a hash chain using a seed and number of iterations.
 #[inline]
 #[allow(dead_code)]
-pub fn hash_chain<D: Digest>(seed: &[u8], iterations: usize, output: &mut [u8]) {
+pub fn hash_chain<D: Digest>(seed: &[u8], iterations: usize) -> [u8; 32] {
     // TODO: reuse hashers in single threaded applications, i.e. via finalize_reset()
+    let mut output = [0u8; 32];
     let mut hasher = D::new();
     output.copy_from_slice(seed);
     for _i in 0..iterations {
         hasher.update(&output);
         output.copy_from_slice(hasher.finalize_reset().as_slice());
     }
+    output
 }
 
 /// Return all of the elements of the hash chain, where seed is at index = 0.
@@ -87,14 +89,14 @@ pub fn compute_hash_chains<D: Digest>(
     most_significant_digit: u8,
 ) -> Vec<Vec<[u8; 32]>> {
     let mut output: Vec<Vec<[u8; 32]>> = Vec::with_capacity(size);
-    let seeds = generate_subseeds::<Blake3>(&LEAF_SALT, seed, size);
+    let seeds = generate_subseeds::<D>(&LEAF_SALT, seed, size);
 
     // optimization: first chain might be shorter (up to most_significant_digit in selected base)
-    let first_chain = full_hash_chain::<Blake3>(&seeds[0], most_significant_digit as usize + 1);
+    let first_chain = full_hash_chain::<D>(&seeds[0], most_significant_digit as usize + 1);
     output.push(first_chain);
 
     for i in 1..seeds.len() {
-        output.push(full_hash_chain::<Blake3>(&seeds[i], base as usize));
+        output.push(full_hash_chain::<D>(&seeds[i], base as usize));
     }
     output
 }
@@ -134,12 +136,7 @@ pub fn generate_subseeds<D: Digest>(
 fn test_hash_chain() {
     use blake3::Hasher as Blake3;
 
-    let mut hash_chain_output = [0; 32];
-    hash_chain::<Blake3>(
-        b"01234567890123456789012345678901",
-        3,
-        &mut hash_chain_output,
-    );
+    let hash_chain_output = hash_chain::<Blake3>(b"01234567890123456789012345678901", 3);
     assert_eq!(
         hex::encode(hash_chain_output),
         "9dce6dd3c7e70a6e5052fe1626b97d5ff50f59764513950df43faf76f15efc5c"
