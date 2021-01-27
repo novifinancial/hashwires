@@ -13,7 +13,8 @@ pub fn plr_accumulator<D: Digest>(
     seed: &[u8],
     list: &Vec<[u8; 32]>,
     max_length: usize,
-) -> (Option<[u8; 32]>, [u8; 32]) {
+    desired_length: usize,
+) -> ([u8; 32], Option<[u8; 32]>) {
     let mut hasher = D::new();
     let padding_node = if list.len() < max_length {
         let mut temp = [0; 32];
@@ -25,9 +26,11 @@ pub fn plr_accumulator<D: Digest>(
         None
     };
 
+    let mut plr_path_node: Option<[u8; 32]> = None;
     match padding_node {
         Some(p) => {
             hasher.update(&p);
+            plr_path_node = Some(p);
         }
         None => {}
     }
@@ -36,12 +39,15 @@ pub fn plr_accumulator<D: Digest>(
     list.iter().enumerate().for_each(|(i, v)| {
         if i != 0 {
             hasher.update(&output);
+            if i == list.len() - desired_length {
+                plr_path_node = Some(output);
+            }
         }
         hasher.update(v);
         output.copy_from_slice(hasher.finalize_reset().as_slice());
     });
 
-    (padding_node, output)
+    (output, plr_path_node)
 }
 
 /// Computes a hash chain using a seed and number of iterations.
@@ -176,21 +182,21 @@ fn test_plr() {
     let seed = [0u8; 32];
     let values = vec![[1u8; 32], [2u8; 32], [3u8; 32]];
 
-    let plr = plr_accumulator::<Blake3>(&seed, &values, 3);
-    assert!(plr.0.is_none());
+    let plr = plr_accumulator::<Blake3>(&seed, &values, 3, 3);
+    assert!(plr.1.is_none());
     assert_eq!(
-        hex::encode(plr.1),
+        hex::encode(plr.0),
         "0082c1dc66375f9ab20e8d699d48d9903fcae459330c03215a9909faaa0cf183"
     );
 
-    let plr = plr_accumulator::<Blake3>(&seed, &values, 4);
-    assert!(plr.0.is_some());
+    let plr = plr_accumulator::<Blake3>(&seed, &values, 4, 3);
+    assert!(plr.1.is_some());
     assert_eq!(
-        hex::encode(plr.0.unwrap()),
-        "e4550de530f0181ffe151102104c2909f0669eb7a840e8f79155ab1d3a9c8f87"
+        hex::encode(plr.0),
+        "4accab47316eb7c538da7b940ce45e459572fd194ce25f4d5d42ab753cbf3fb4"
     );
     assert_eq!(
-        hex::encode(plr.1),
+        hex::encode(plr.0),
         "4accab47316eb7c538da7b940ce45e459572fd194ce25f4d5d42ab753cbf3fb4"
     );
 }
