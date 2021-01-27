@@ -123,11 +123,11 @@ pub fn bigger_than_proof_gen<D: Digest>(
 pub fn proof_verify<D: Digest>(
     proving_value: &BigUint,
     base: u32,
-    commitment: Vec<u8>,
-    plr_padding: Option<[u8; 32]>,
-    chain_nodes: Vec<[u8; 32]>,
-    mdp_salt: [u8; 32],
-    smt_inclusion_proof: Vec<u8>,
+    commitment: &Vec<u8>,
+    plr_padding: &Option<[u8; 32]>,
+    chain_nodes: &Vec<[u8; 32]>,
+    mdp_salt: &[u8; 32],
+    smt_inclusion_proof: &Vec<u8>,
 ) -> bool {
     let bitlength = compute_bitlength(base);
     let requested_value_split = value_split_per_base(proving_value, bitlength);
@@ -155,13 +155,13 @@ pub fn proof_verify<D: Digest>(
         mdp_root.copy_from_slice(hasher.finalize_reset().as_slice());
     });
 
-    let salted_mdp_root = salted_hash::<D>(&mdp_salt, &mdp_root);
+    let salted_mdp_root = salted_hash::<D>(mdp_salt, &mdp_root);
 
     // Decode the Merkle proof.
     let deserialized_proof =
         MerkleProof::<HashNodeSMT<Blake3>>::deserialize(&smt_inclusion_proof).unwrap();
 
-    let commitment_node = HashNodeSMT::<Blake3>::new(commitment);
+    let commitment_node = HashNodeSMT::<Blake3>::new(commitment.clone());
     let smt_mdp_node = HashNodeSMT::<Blake3>::new(salted_mdp_root.to_vec());
 
     deserialized_proof.verify_inclusion_proof(&[smt_mdp_node], &commitment_node)
@@ -381,11 +381,11 @@ fn test_hashwires() {
     assert!(proof_verify::<Blake3>(
         &proving_value,
         base,
-        hw_commit_and_proof.0,
-        hw_commit_and_proof.1,
-        hw_commit_and_proof.2,
-        hw_commit_and_proof.3,
-        hw_commit_and_proof.4
+        &hw_commit_and_proof.0,
+        &hw_commit_and_proof.1,
+        &hw_commit_and_proof.2,
+        &hw_commit_and_proof.3,
+        &hw_commit_and_proof.4
     ));
 
     let max_digits = 32;
