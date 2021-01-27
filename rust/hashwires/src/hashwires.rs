@@ -49,7 +49,7 @@ pub fn bigger_than_proof_gen<D: Digest>(
     seed: &[u8],
     max_number_bits: usize,
     mdp_smt_height: usize,
-) -> Vec<u8> {
+) -> (Vec<u8>, Option<[u8; 32]>, Vec<[u8; 32]>, [u8; 32], Vec<u8>) {
     // Step 0: compute base's bitlength
     let bitlength = compute_bitlength(base);
 
@@ -73,8 +73,8 @@ pub fn bigger_than_proof_gen<D: Digest>(
     // Step B: split proving value per base (bitlength digits)
     let proving_value_split = value_split_per_base(proving_value, bitlength);
 
-    // Step 5: SMT roots per MDP
-    let (plr_roots, inclusion_proof) = plr_roots_and_proof::<D>(
+    // Step 5: PLR roots per MDP
+    let (plr_roots, plr_proof) = plr_roots_and_proof::<D>(
         seed,
         &wires,
         max_number_bits / bitlength,
@@ -100,23 +100,23 @@ pub fn bigger_than_proof_gen<D: Digest>(
     );
 
     // Step 9: Compute final root (HW commitment)
-    let hw_commitment = final_smt_root(&top_salted_roots, &shuffled_indexes, mdp_smt_height);
-
-    // ---- Proof generation ----
-    // Step A: pick mdp index
-    // TODO remove unwrap()
-    let mdp_index = pick_mdp_index(proving_value, &mdp).unwrap();
-
-    // Step B: split proving value per base (bitlength digits)
-    let proving_value_split = value_split_per_base(proving_value, bitlength);
+    let hw_commitment = final_smt_root_and_proof::<D>(
+        &top_salted_roots,
+        &shuffled_indexes,
+        mdp_smt_height,
+        mdp_index,
+    );
 
     // Step C: pick hachchain nodes for the proving value
     let chain_nodes = proving_value_chain_nodes(&chains, &splits, &proving_value_split, mdp_index);
 
-    // Step D: MDP chains SMT composite proof
-    // let mdp_chain_smt_proof =
-
-    hw_commitment
+    (
+        hw_commitment.0,
+        plr_proof,
+        chain_nodes,
+        salts[mdp_index],
+        hw_commitment.1,
+    )
 }
 
 pub fn commit_gen<D: Digest>(
@@ -163,7 +163,7 @@ pub fn commit_gen<D: Digest>(
     );
 
     // Step 9: Compute final root (HW commitment)
-    let hw_commitment = final_smt_root(&top_salted_roots, &shuffled_indexes, mdp_smt_height);
+    let hw_commitment = final_smt_root::<D>(&top_salted_roots, &shuffled_indexes, mdp_smt_height);
     hw_commitment
 }
 
@@ -207,7 +207,7 @@ fn compute_bitlength(base: u32) -> usize {
     }
 }
 
-fn final_smt_root(
+fn final_smt_root<D: Digest>(
     top_salted_roots: &Vec<[u8; 32]>,
     shuffled_indexes: &Vec<usize>,
     tree_height: usize,
@@ -228,6 +228,76 @@ fn final_smt_root(
     tree.build(&smt_leaves);
     tree.get_root_raw().serialize()
 }
+
+fn final_smt_root_and_proof<D: Digest>(
+    top_salted_roots: &Vec<[u8; 32]>,
+    shuffled_indexes: &Vec<usize>,
+    tree_height: usize,
+    leaf_index: usize,
+) -> (Vec<u8>, Vec<u8>) {
+    let mut smt_leaves: Vec<(TreeIndex, node_template::HashNodeSMT<Blake3>)> = top_salted_roots
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            (
+                set_pos_best(tree_height, shuffled_indexes[i] as u32),
+                node_template::HashNodeSMT::<Blake3>::new(s.to_vec()),
+            )
+        })
+        .collect();
+
+    let node = *(&smt_leaves[leaf_index].0);
+
+    smt_leaves.sort_by(|(t1, _), (t2, _)| t1.cmp(t2));
+    let mut tree: SMT<node_template::HashNodeSMT<Blake3>> = SMT::new(tree_height);
+    tree.build(&smt_leaves);
+
+    let inclusion_proof =
+        MerkleProof::<node_template::HashNodeSMT<Blake3>>::generate_inclusion_proof(&tree, &[node])
+            .unwrap();
+    let smt_proof = inclusion_proof.serialize();
+
+    (tree.get_root_raw().serialize(), smt_proof)
+}
+
+// let smt_leaves: Vec<Vec<(TreeIndex, node_template::HashNodeSMT<Blake3>)>> = wires
+// .iter()
+// .map(|v| {
+// v.iter()
+// .enumerate()
+// .map(|(i, s)| {
+// (
+// set_pos_best(tree_height, i as u32),
+// node_template::HashNodeSMT::<Blake3>::new(s.to_vec()),
+// )
+// })
+// .collect()
+// })
+// .collect();
+
+// let mut smt_roots = Vec::with_capacity(smt_leaves.len());
+// let mut proof: Vec<u8> = Vec::new();
+// smt_leaves.iter().enumerate().for_each(|(i, v)| {
+// let mut tree: SMT<node_template::HashNodeSMT<Blake3>> = SMT::new(tree_height);
+// tree.build(v);
+// smt_roots.push(tree.get_root_raw().clone());
+// if i == mdp_index {
+// let mut inclusion_list = vec![];
+// &v[v.len() - proving_value_split_size..v.len()]
+// .iter()
+// .for_each(|(t, v)| {
+// inclusion_list.push(*t);
+// });
+// let inclusion_proof =
+// MerkleProof::<node_template::HashNodeSMT<Blake3>>::generate_inclusion_proof(
+// &tree,
+// &inclusion_list,
+// )
+// .unwrap();
+// proof = inclusion_proof.serialize();
+// }
+// });
+// (smt_roots, proof)
 
 fn mdp_splits(mdp: &Vec<BigUint>, bitlength: usize) -> Vec<Vec<u8>> {
     mdp.iter()
@@ -287,7 +357,7 @@ fn test_hashwires() {
     let value = BigUint::from_str_radix("212", 4).unwrap();
     let seed = [0u8; 32];
     let proving_value = BigUint::from_str_radix("201", 4).unwrap();
-    let hw_commit = bigger_than_proof_gen::<Blake3>(
+    let hw_commit_and_proof = bigger_than_proof_gen::<Blake3>(
         &proving_value,
         &value,
         base,
@@ -296,7 +366,7 @@ fn test_hashwires() {
         mdp_tree_height,
     );
     assert_eq!(
-        hex::encode(hw_commit),
+        hex::encode(hw_commit_and_proof.0),
         "04b481bd8afc7316b3df5c85a01f50619d95119d4698e33d58b813a2453c2971"
     );
 
