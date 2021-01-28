@@ -270,8 +270,7 @@ where
         // Run a BFS to go through all tree nodes and
         // generate the tree index for each node in the meanwhile.
         // The first node in the vector is the root.
-        let mut vec: Vec<(TreeIndex, usize)> = Vec::new();
-        vec.push((TreeIndex::zero(0), self.root));
+        let mut vec: Vec<(TreeIndex, usize)> = vec![(TreeIndex::zero(0), self.root)];
         let mut head: usize = 0;
         while head < vec.len() {
             // If there is a left child, add it to the vector.
