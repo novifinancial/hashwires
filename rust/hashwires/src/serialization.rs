@@ -61,7 +61,7 @@ pub(crate) fn take_slice(input: &[u8], len: usize) -> Result<(&[u8], &[u8]), HWE
 mod tests {
     use super::serialize;
     use crate::errors::HWError;
-    use crate::hashwires::{HWProof, HashWires};
+    use crate::hashwires::{Commitment, Proof};
     use blake3::Hasher as Blake3;
     use rand_core::{OsRng, RngCore};
 
@@ -71,8 +71,8 @@ mod tests {
         let mut bytes = [0u8; 32];
         rng.fill_bytes(&mut bytes);
 
-        let hw = HashWires::<Blake3>::deserialize(&bytes, 4, 32);
-        let output = hw.serialize();
+        let commitment = Commitment::<Blake3>::deserialize(&bytes, 4);
+        let output = commitment.serialize();
 
         assert_eq!(bytes.to_vec(), output);
         Ok(())
@@ -114,7 +114,7 @@ mod tests {
     #[test]
     fn test_proof_serialization_with_padding() -> Result<(), HWError> {
         let bytes = sample_dummy_proof_bytes(true);
-        let proof = HWProof::deserialize(&bytes)?;
+        let proof = Proof::deserialize(&bytes)?;
         let output = proof.serialize();
 
         assert_eq!(bytes.to_vec(), output);
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn test_proof_serialization_without_padding() -> Result<(), HWError> {
         let bytes = sample_dummy_proof_bytes(false);
-        let proof = HWProof::deserialize(&bytes)?;
+        let proof = Proof::deserialize(&bytes)?;
         let output = proof.serialize();
 
         assert_eq!(bytes.to_vec(), output);

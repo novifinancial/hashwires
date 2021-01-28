@@ -24,26 +24,38 @@ pub(crate) const PLR_PADDING_SIZE: usize = 32;
 pub(crate) const CHAIN_NODES_SIZE: usize = 32;
 pub(crate) const MDP_SALT_SIZE: usize = 16;
 
-pub struct HashWires<D: Hash> {
+pub struct Commitment<D: Hash> {
     base: u32,
-    max_number_bits: usize,
     commitment: Vec<u8>,
     _d: PhantomData<D>,
 }
 
-impl<D: Hash> HashWires<D> {
-    pub fn commit(
-        seed: &[u8],
-        value: &BigUint,
-        base: u32,
-        max_number_bits: usize,
-    ) -> Result<Self, HWError> {
+pub struct Secret<D: Hash> {
+    value: BigUint,
+    seed: Vec<u8>,
+    _d: PhantomData<D>,
+}
+
+impl<D: Hash> Secret<D> {
+    pub fn gen(seed: &[u8], value: &BigUint) -> Self {
+        Self {
+            value: value.clone(),
+            seed: seed.to_vec(),
+            _d: PhantomData,
+        }
+    }
+
+    pub fn commit(&self, base: u32, max_number_bits: usize) -> Result<Commitment<D>, HWError> {
         let mdp_smt_height = compute_mdp_height(base, max_number_bits);
-        let commitment =
-            commit_gen::<D>(value, base, &seed, max_number_bits, mdp_smt_height as usize)?;
-        Ok(Self {
+        let commitment = commit_gen::<D>(
+            &self.value,
             base,
+            &self.seed,
             max_number_bits,
+            mdp_smt_height as usize,
+        )?;
+        Ok(Commitment {
+            base,
             commitment,
             _d: PhantomData,
         })
@@ -51,28 +63,30 @@ impl<D: Hash> HashWires<D> {
 
     pub fn prove(
         &self,
-        seed: &[u8],
-        value: &BigUint,
+        base: u32,
+        max_number_bits: usize,
         threshold: &BigUint,
-    ) -> Result<HWProof, HWError> {
-        let mdp_smt_height = compute_mdp_height(self.base, self.max_number_bits);
+    ) -> Result<Proof, HWError> {
+        let mdp_smt_height = compute_mdp_height(base, max_number_bits);
         let result = bigger_than_proof_gen::<D>(
             threshold,
-            value,
-            self.base,
-            seed,
-            self.max_number_bits,
+            &self.value,
+            base,
+            &self.seed,
+            max_number_bits,
             mdp_smt_height as usize,
         )?;
-        Ok(HWProof {
+        Ok(Proof {
             plr_padding: result.1,
             chain_nodes: result.2,
             mdp_salt: result.3,
             smt_inclusion_proof: result.4,
         })
     }
+}
 
-    pub fn verify(&self, proof: &HWProof, threshold: &BigUint) -> Result<(), HWError> {
+impl<D: Hash> Commitment<D> {
+    pub fn verify(&self, proof: &Proof, threshold: &BigUint) -> Result<(), HWError> {
         let result = proof_verify::<D>(
             threshold,
             self.base,
@@ -92,24 +106,23 @@ impl<D: Hash> HashWires<D> {
         self.commitment.clone()
     }
 
-    pub fn deserialize(bytes: &[u8], base: u32, max_number_bits: usize) -> Self {
+    pub fn deserialize(bytes: &[u8], base: u32) -> Self {
         Self {
             base,
-            max_number_bits,
             commitment: bytes.to_vec(),
             _d: PhantomData,
         }
     }
 }
 
-pub struct HWProof {
+pub struct Proof {
     plr_padding: Option<[u8; PLR_PADDING_SIZE]>,
     chain_nodes: Vec<[u8; CHAIN_NODES_SIZE]>,
     mdp_salt: [u8; MDP_SALT_SIZE],
     smt_inclusion_proof: Vec<u8>,
 }
 
-impl HWProof {
+impl Proof {
     pub fn serialize(&self) -> Vec<u8> {
         let mut chain_nodes_flattened = vec![];
         for elem in self.chain_nodes.iter() {
@@ -556,14 +569,16 @@ mod tests {
         let mut seed = vec![0u8; 32];
         rng.fill_bytes(&mut seed);
 
-        let hw = HashWires::<Blake3>::commit(&seed, &value, base, max_number_bits)?;
-        let commitment_bytes = hw.serialize();
+        let secret = Secret::<Blake3>::gen(&seed, &value);
 
-        let proof = hw.prove(&seed, &value, &threshold)?;
+        let commitment = secret.commit(base, max_number_bits)?;
+        let commitment_bytes = commitment.serialize();
+
+        let proof = secret.prove(base, max_number_bits, &threshold)?;
         let proof_bytes = proof.serialize();
 
-        HashWires::<Blake3>::deserialize(&commitment_bytes, base, max_number_bits)
-            .verify(&HWProof::deserialize(&proof_bytes)?, &threshold)
+        Commitment::<Blake3>::deserialize(&commitment_bytes, base)
+            .verify(&Proof::deserialize(&proof_bytes)?, &threshold)
     }
 
     #[test]
