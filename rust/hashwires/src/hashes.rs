@@ -7,7 +7,6 @@ pub const PADDING_SALT: &[u8; 32] = b"21234567890123456789012345678901";
 
 /// Output padding node + PLR accumulator
 #[inline]
-#[allow(dead_code)]
 pub fn plr_accumulator<D: Digest>(
     seed: &[u8],
     list: &[[u8; 32]],
@@ -48,7 +47,6 @@ pub fn plr_accumulator<D: Digest>(
 
 /// Computes a hash chain using a seed and number of iterations.
 #[inline]
-#[allow(dead_code)]
 pub fn hash_chain<D: Digest>(seed: &[u8], iterations: usize) -> [u8; 32] {
     // TODO: reuse hashers in single threaded applications, i.e. via finalize_reset()
     let mut output = [0u8; 32];
@@ -63,7 +61,6 @@ pub fn hash_chain<D: Digest>(seed: &[u8], iterations: usize) -> [u8; 32] {
 
 /// Return all of the elements of the hash chain, where seed is at index = 0.
 #[inline]
-#[allow(dead_code)]
 pub fn full_hash_chain<D: Digest>(seed: &[u8], size: usize) -> Vec<[u8; 32]> {
     let mut hasher = D::new();
     let mut output = Vec::with_capacity(size);
@@ -85,7 +82,7 @@ pub fn compute_hash_chains<D: Digest>(
     most_significant_digit: u8,
 ) -> Vec<Vec<[u8; 32]>> {
     let mut output: Vec<Vec<[u8; 32]>> = Vec::with_capacity(size);
-    let seeds = generate_subseeds::<D>(&LEAF_SALT, seed, size);
+    let seeds = generate_subseeds_32bytes::<D>(LEAF_SALT, seed, size);
 
     // optimization: first chain might be shorter (up to most_significant_digit in selected base)
     let first_chain = full_hash_chain::<D>(&seeds[0], most_significant_digit as usize + 1);
@@ -100,7 +97,6 @@ pub fn compute_hash_chains<D: Digest>(
 /// Simple KDF hash(salt, i, seed)
 /// TODO: make it more generic to work for any seed size
 #[inline]
-#[allow(dead_code)]
 pub fn salted_hash<D: Digest>(salt: &[u8], seed: &[u8]) -> [u8; 32] {
     let mut hasher = D::new();
     hasher.update(salt);
@@ -111,9 +107,8 @@ pub fn salted_hash<D: Digest>(salt: &[u8], seed: &[u8]) -> [u8; 32] {
 }
 
 #[inline]
-#[allow(dead_code)]
-pub fn generate_subseeds<D: Digest>(
-    salt: &[u8; 32],
+pub fn generate_subseeds_32bytes<D: Digest>(
+    salt: &[u8],
     seed: &[u8],
     num_of_seeds: usize,
 ) -> Vec<[u8; 32]> {
@@ -124,6 +119,25 @@ pub fn generate_subseeds<D: Digest>(
         hasher.update(i.to_le_bytes());
         hasher.update(seed);
         seeds.push(<[u8; 32]>::try_from(hasher.finalize_reset().as_slice()).unwrap());
+    }
+    seeds
+}
+
+#[inline]
+pub fn generate_subseeds_16bytes<D: Digest>(
+    salt: &[u8],
+    seed: &[u8],
+    num_of_seeds: usize,
+) -> Vec<[u8; 16]> {
+    let mut hasher = D::new();
+    let mut seeds = Vec::with_capacity(num_of_seeds);
+    for i in 0..num_of_seeds {
+        hasher.update(salt);
+        hasher.update(i.to_le_bytes());
+        hasher.update(seed);
+        seeds.push(
+            <[u8; 16]>::try_from(&hasher.finalize_reset().as_slice().to_vec()[..16]).unwrap(),
+        );
     }
     seeds
 }

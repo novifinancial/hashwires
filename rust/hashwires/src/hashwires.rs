@@ -1,19 +1,22 @@
-use crate::dp::{find_mdp, value_split_per_base};
-use crate::hashes::{
-    compute_hash_chains, generate_subseeds, hash_chain, plr_accumulator, salted_hash, TOP_SALT,
-};
+use std::convert::TryFrom;
+
 use blake3::Hasher as Blake3;
+use digest::Digest;
 use num_bigint::BigUint;
 
-use crate::errors::HWError;
-use crate::shuffle::deterministic_index_shuffling;
-use digest::Digest;
 use smt::index::TreeIndex;
 use smt::node_template::HashNodeSMT;
 use smt::traits::Serializable;
 use smt::utils::set_pos_best;
 use smt::{node_template, proof::MerkleProof, traits::InclusionProvable, tree::SparseMerkleTree};
-use std::convert::TryFrom;
+
+use crate::dp::{find_mdp, value_split_per_base};
+use crate::errors::HWError;
+use crate::hashes::{
+    compute_hash_chains, generate_subseeds_16bytes, hash_chain, plr_accumulator, salted_hash,
+    TOP_SALT,
+};
+use crate::shuffle::deterministic_index_shuffling;
 
 type SMT<P> = SparseMerkleTree<P>;
 
@@ -43,7 +46,7 @@ pub fn bigger_than_proof_gen<D: Digest>(
     seed: &[u8],
     max_number_bits: usize,
     mdp_smt_height: usize,
-) -> Result<(Vec<u8>, Option<[u8; 32]>, Vec<[u8; 32]>, [u8; 32], Vec<u8>), HWError> {
+) -> Result<(Vec<u8>, Option<[u8; 32]>, Vec<[u8; 32]>, [u8; 16], Vec<u8>), HWError> {
     // Step 0: compute base's bitlength
     let bitlength = compute_bitlength(base);
 
@@ -77,7 +80,7 @@ pub fn bigger_than_proof_gen<D: Digest>(
     );
 
     // Step 6: compute top salts
-    let salts = generate_subseeds::<D>(TOP_SALT, seed, plr_roots.len());
+    let salts = generate_subseeds_16bytes::<D>(TOP_SALT, seed, plr_roots.len());
 
     // Step 7: KDF smt roots
     let top_salted_roots: Vec<[u8; 32]> = plr_roots
@@ -119,7 +122,7 @@ pub fn proof_verify<D: Digest>(
     commitment: &[u8],
     plr_padding: &Option<[u8; 32]>,
     chain_nodes: &[[u8; 32]],
-    mdp_salt: &[u8; 32],
+    mdp_salt: &[u8; 16],
     smt_inclusion_proof: &[u8],
 ) -> bool {
     let bitlength = compute_bitlength(base);
@@ -187,7 +190,7 @@ pub fn commit_gen<D: Digest>(
     let plr_roots = plr_roots::<D>(seed, &wires, max_number_bits / bitlength);
 
     // Step 6: compute top salts
-    let salts = generate_subseeds::<D>(TOP_SALT, seed, plr_roots.len());
+    let salts = generate_subseeds_16bytes::<D>(TOP_SALT, seed, plr_roots.len());
 
     // Step 7: KDF smt roots
     let top_salted_roots: Vec<[u8; 32]> = plr_roots
@@ -349,9 +352,11 @@ fn wires(splits: &[Vec<u8>], chains: &[Vec<[u8; 32]>]) -> Vec<Vec<[u8; 32]>> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use num_traits::Num;
+
     use smt::utils::print_output;
+
+    use super::*;
 
     #[test]
     fn test_hashwires() {
@@ -372,7 +377,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             hex::encode(&hw_commit_and_proof.0),
-            "04b481bd8afc7316b3df5c85a01f50619d95119d4698e33d58b813a2453c2971"
+            "b3cbed18644291b4cc300c265609432dc9797d29e4123bd0bf763c9299cbdc6f"
         );
         assert!(proof_verify::<Blake3>(
             &proving_value,
@@ -381,7 +386,7 @@ mod tests {
             &hw_commit_and_proof.1,
             &hw_commit_and_proof.2,
             &hw_commit_and_proof.3,
-            &hw_commit_and_proof.4
+            &hw_commit_and_proof.4,
         ));
 
         let max_digits = 32;
@@ -393,7 +398,7 @@ mod tests {
             commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height).unwrap();
         assert_eq!(
             hex::encode(hw_commit),
-            "559537f8abee0b293e4d5415a058d36205a1fc9f6704652553e971a08c68390c"
+            "1c9faca8f6159f8e5041bebd823de9e3c252f25a8071543ee6c3a4c1c974d411"
         );
 
         let max_digits = 64;
@@ -405,7 +410,7 @@ mod tests {
             commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height).unwrap();
         assert_eq!(
             hex::encode(hw_commit),
-            "2881049a7eada5cd90cc5f0a32d4acfd574376ce2727eba8924d7e5180b61d82"
+            "2647d6e7aaa0c752f4adb7cff9274cb7f4f6a7952002741b85628dc8ac06a81e"
         );
 
         let max_digits = 128;
@@ -417,7 +422,7 @@ mod tests {
             commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height).unwrap();
         assert_eq!(
             hex::encode(hw_commit),
-            "223149de67f18d17a5e720540c361d6e4d5bc7573bfe6e3ba481f06947f5fbe3"
+            "84dd666be754f4bbe7a344d8b6dc8f0fa3c708dd5dbd45904301b84ba2ec37ff"
         );
     }
 
