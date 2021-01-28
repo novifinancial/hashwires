@@ -17,4 +17,6 @@ pub enum HWError {
     MerkleProofDecodingError,
     /// Proving value is bigger than the issued value
     MDPError,
+    /// Error in serializing / deserializing bytestrings
+    SerializationError,
 }

@@ -10,6 +10,7 @@ use crate::hashes::{
     compute_hash_chains, generate_subseeds_16bytes, hash_chain, plr_accumulator, salted_hash,
     TOP_SALT,
 };
+use crate::serialization::{serialize, take_slice, tokenize};
 use crate::shuffle::deterministic_index_shuffling;
 use smt::index::TreeIndex;
 use smt::node_template::HashNodeSMT;
@@ -20,18 +21,15 @@ use std::marker::PhantomData;
 
 type SMT<P> = SparseMerkleTree<P>;
 
+pub(crate) const PLR_PADDING_SIZE: usize = 32;
+pub(crate) const CHAIN_NODES_SIZE: usize = 32;
+pub(crate) const MDP_SALT_SIZE: usize = 16;
+
 pub struct HashWires<D: Digest> {
     base: u32,
     max_number_bits: usize,
     commitment: Vec<u8>,
     _d: PhantomData<D>,
-}
-
-pub struct HWProof {
-    plr_padding: Option<[u8; 32]>,
-    chain_nodes: Vec<[u8; 32]>,
-    mdp_salt: [u8; 16],
-    smt_inclusion_proof: Vec<u8>,
 }
 
 impl<D: Digest> HashWires<D> {
@@ -90,6 +88,88 @@ impl<D: Digest> HashWires<D> {
             false => Err(HWError::ProofVerificationError),
         }
     }
+
+    pub fn serialize(&self) -> Vec<u8> {
+        self.commitment.clone()
+    }
+
+    pub fn deserialize(bytes: &[u8], base: u32, max_number_bits: usize) -> Self {
+        Self {
+            base,
+            max_number_bits,
+            commitment: bytes.to_vec(),
+            _d: PhantomData,
+        }
+    }
+}
+
+pub struct HWProof {
+    plr_padding: Option<[u8; PLR_PADDING_SIZE]>,
+    chain_nodes: Vec<[u8; CHAIN_NODES_SIZE]>,
+    mdp_salt: [u8; MDP_SALT_SIZE],
+    smt_inclusion_proof: Vec<u8>,
+}
+
+impl HWProof {
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut chain_nodes_flattened = vec![];
+        for elem in self.chain_nodes.iter() {
+            chain_nodes_flattened.extend_from_slice(elem);
+        }
+        let mut result = [
+            &serialize(&chain_nodes_flattened, 2),
+            &self.mdp_salt.to_vec()[..],
+            &serialize(&self.smt_inclusion_proof, 2),
+        ]
+        .concat();
+        if let Some(v) = self.plr_padding {
+            result.extend_from_slice(&v);
+        }
+
+        result
+    }
+
+    pub fn deserialize(input: &[u8]) -> Result<Self, HWError> {
+        let (chain_nodes_flattened, remainder) = tokenize(&input, 2)?;
+        let (mdp_salt, remainder) = take_slice(&remainder, MDP_SALT_SIZE)?;
+        let (smt_inclusion_proof, remainder) = tokenize(&remainder, 2)?;
+        let plr_padding = match remainder.is_empty() {
+            true => None,
+            false => {
+                let (padding, remainder) = take_slice(&remainder, PLR_PADDING_SIZE)?;
+                if !remainder.is_empty() {
+                    return Err(HWError::SerializationError);
+                }
+                Some(
+                    <[u8; PLR_PADDING_SIZE]>::try_from(padding)
+                        .map_err(|_| HWError::SerializationError)?,
+                )
+            }
+        };
+
+        let mut chain_nodes = vec![];
+        let mut cn_index = 0;
+        while cn_index < chain_nodes_flattened.len() {
+            chain_nodes.push(
+                <[u8; CHAIN_NODES_SIZE]>::try_from(
+                    &chain_nodes_flattened[cn_index..cn_index + CHAIN_NODES_SIZE],
+                )
+                .map_err(|_| HWError::SerializationError)?,
+            );
+            cn_index += CHAIN_NODES_SIZE;
+        }
+        if cn_index != chain_nodes_flattened.len() {
+            return Err(HWError::SerializationError);
+        }
+
+        Ok(Self {
+            chain_nodes,
+            plr_padding,
+            mdp_salt: <[u8; MDP_SALT_SIZE]>::try_from(mdp_salt)
+                .map_err(|_| HWError::SerializationError)?,
+            smt_inclusion_proof,
+        })
+    }
 }
 
 // /// Function to generate HW commitments
@@ -136,7 +216,6 @@ pub fn bigger_than_proof_gen<D: Digest>(
     let wires: Vec<Vec<[u8; 32]>> = wires(&splits, &chains);
 
     // Step A: pick mdp index
-    // TODO remove unwrap()
     let mdp_index = pick_mdp_index(proving_value, &mdp)?;
 
     // Step B: split proving value per base (bitlength digits)
@@ -460,8 +539,13 @@ mod tests {
         rng.fill_bytes(&mut seed);
 
         let hw = HashWires::<Blake3>::commit(&seed, &value, base, max_number_bits)?;
+        let commitment_bytes = hw.serialize();
+
         let proof = hw.prove(&seed, &value, &threshold)?;
-        hw.verify(&proof, &threshold)
+        let proof_bytes = proof.serialize();
+
+        HashWires::<Blake3>::deserialize(&commitment_bytes, base, max_number_bits)
+            .verify(&HWProof::deserialize(&proof_bytes)?, &threshold)
     }
 
     #[test]
