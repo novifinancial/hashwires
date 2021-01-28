@@ -9,9 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./rust/hashwires/
     strategy:
       fail-fast: false
     name: test
@@ -31,6 +28,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+          args: --manifest-path rust/hashwires/Cargo.toml
 
   benches:
     name: cargo bench compilation
@@ -43,14 +41,14 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: stable
+          toolchain: nightly
           override: true
 
       - name: Run cargo bench --no-run
         uses: actions-rs/cargo@v1
         with:
           command: bench
-          args: --no-run
+          args: --no-run --manifest-path rust/hashwires/Cargo.toml
 
   clippy:
     name: cargo clippy
@@ -71,7 +69,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: -- -D warnings
+          args: --manifest-path rust/hashwires/Cargo.toml -- -D warnings
 
 
   format:
@@ -93,11 +91,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all -- --check
-
-  deny-check:
-    name: cargo-deny check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v1
-      - uses: EmbarkStudios/cargo-deny-action@v1
+          args: --all --manifest-path rust/hashwires/Cargo.toml -- --check
