@@ -154,7 +154,7 @@ fn print_node(spaces: usize, idx: &TreeIndex, leaves: &Set, paddings: &Set, inte
 pub fn print_output<P: Clone + Default + Mergeable + Paddable + ProofExtractable>(
     tree: &SparseMerkleTree<P>,
 ) where
-    <P as ProofExtractable>::ProofNode: Debug + Clone + Default + Eq + Mergeable + Serializable,
+    <P as ProofExtractable>::ProofNode: Clone + Default + Eq + Mergeable + Serializable,
 {
     // TODO: check the size of the tree
     let mut leaves = Set::new();

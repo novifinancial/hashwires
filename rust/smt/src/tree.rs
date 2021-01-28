@@ -143,7 +143,7 @@ pub struct SparseMerkleTree<P> {
 
 impl<P: Clone + Default + Mergeable + Paddable + ProofExtractable> SparseMerkleTree<P>
 where
-    <P as ProofExtractable>::ProofNode: Debug + Clone + Default + Eq + Mergeable + Serializable,
+    <P as ProofExtractable>::ProofNode: Clone + Default + Eq + Mergeable + Serializable,
 {
     /// The constructor.
     ///
