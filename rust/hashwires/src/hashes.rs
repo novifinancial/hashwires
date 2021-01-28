@@ -169,9 +169,9 @@ fn test_compute_hashchains() {
     let seed = [0u8; 32];
     let chains = compute_hash_chains::<Blake3>(&seed, 3, 4, 2);
     assert_eq!(chains.len(), 3);
-    assert_eq!(chains[0].len(), 2);
-    assert_eq!(chains[1].len(), 3);
-    assert_eq!(chains[2].len(), 3);
+    assert_eq!(chains[0].len(), 3);
+    assert_eq!(chains[1].len(), 4);
+    assert_eq!(chains[2].len(), 4);
 }
 
 #[test]
