@@ -1,5 +1,4 @@
 use digest::Digest;
-use std::convert::TryFrom;
 
 pub const LEAF_SALT: &[u8; 32] = b"01234567890123456789012345678901";
 pub const TOP_SALT: &[u8; 32] = b"11234567890123456789012345678901";
@@ -82,7 +81,7 @@ pub fn compute_hash_chains<D: Digest>(
     most_significant_digit: u8,
 ) -> Vec<Vec<[u8; 32]>> {
     let mut output: Vec<Vec<[u8; 32]>> = Vec::with_capacity(size);
-    let seeds = generate_subseeds_32bytes::<D>(LEAF_SALT, seed, size);
+    let seeds = generate_subseeds::<D>(LEAF_SALT, seed, size, D::output_size());
 
     // optimization: first chain might be shorter (up to most_significant_digit in selected base)
     let first_chain = full_hash_chain::<D>(&seeds[0], most_significant_digit as usize + 1);
@@ -107,37 +106,19 @@ pub fn salted_hash<D: Digest>(salt: &[u8], seed: &[u8]) -> [u8; 32] {
 }
 
 #[inline]
-pub fn generate_subseeds_32bytes<D: Digest>(
+pub fn generate_subseeds<D: Digest>(
     salt: &[u8],
     seed: &[u8],
     num_of_seeds: usize,
-) -> Vec<[u8; 32]> {
+    output_size: usize, // TODO check if output_size < D::output_size
+) -> Vec<Vec<u8>> {
     let mut hasher = D::new();
     let mut seeds = Vec::with_capacity(num_of_seeds);
     for i in 0..num_of_seeds {
         hasher.update(salt);
         hasher.update(i.to_le_bytes());
         hasher.update(seed);
-        seeds.push(<[u8; 32]>::try_from(hasher.finalize_reset().as_slice()).unwrap());
-    }
-    seeds
-}
-
-#[inline]
-pub fn generate_subseeds_16bytes<D: Digest>(
-    salt: &[u8],
-    seed: &[u8],
-    num_of_seeds: usize,
-) -> Vec<[u8; 16]> {
-    let mut hasher = D::new();
-    let mut seeds = Vec::with_capacity(num_of_seeds);
-    for i in 0..num_of_seeds {
-        hasher.update(salt);
-        hasher.update(i.to_le_bytes());
-        hasher.update(seed);
-        seeds.push(
-            <[u8; 16]>::try_from(&hasher.finalize_reset().as_slice().to_vec()[..16]).unwrap(),
-        );
+        seeds.push(hasher.finalize_reset().as_slice()[..output_size].to_vec())
     }
     seeds
 }

@@ -1,4 +1,4 @@
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 use digest::Digest;
 use num_bigint::BigUint;
@@ -6,8 +6,7 @@ use num_bigint::BigUint;
 use crate::dp::{find_mdp, value_split_per_base};
 use crate::errors::HWError;
 use crate::hashes::{
-    compute_hash_chains, generate_subseeds_16bytes, hash_chain, plr_accumulator, salted_hash,
-    TOP_SALT,
+    compute_hash_chains, generate_subseeds, hash_chain, plr_accumulator, salted_hash, TOP_SALT,
 };
 use crate::serialization::{serialize, take_slice, tokenize};
 use crate::shuffle::deterministic_index_shuffling;
@@ -198,7 +197,16 @@ pub fn bigger_than_proof_gen<D: Hash>(
     seed: &[u8],
     max_number_bits: usize,
     mdp_smt_height: usize,
-) -> Result<(Vec<u8>, Option<[u8; 32]>, Vec<[u8; 32]>, [u8; 16], Vec<u8>), HWError> {
+) -> Result<
+    (
+        Vec<u8>,
+        Option<[u8; 32]>,
+        Vec<[u8; 32]>,
+        [u8; MDP_SALT_SIZE],
+        Vec<u8>,
+    ),
+    HWError,
+> {
     // Step 0: compute base's bitlength
     let bitlength = compute_bitlength(base);
 
@@ -231,7 +239,7 @@ pub fn bigger_than_proof_gen<D: Hash>(
     );
 
     // Step 6: compute top salts
-    let salts = generate_subseeds_16bytes::<D>(TOP_SALT, seed, plr_roots.len());
+    let salts = generate_subseeds::<D>(TOP_SALT, seed, plr_roots.len(), MDP_SALT_SIZE);
 
     // Step 7: KDF smt roots
     let top_salted_roots: Vec<[u8; 32]> = plr_roots
@@ -262,7 +270,7 @@ pub fn bigger_than_proof_gen<D: Hash>(
         hw_commitment.0,
         plr_proof,
         chain_nodes,
-        salts[mdp_index],
+        vec_to_array(salts[mdp_index].clone()),
         hw_commitment.1,
     ))
 }
@@ -341,7 +349,7 @@ pub fn commit_gen<D: Hash>(
     let plr_roots = plr_roots::<D>(seed, &wires, max_number_bits / bitlength);
 
     // Step 6: compute top salts
-    let salts = generate_subseeds_16bytes::<D>(TOP_SALT, seed, plr_roots.len());
+    let salts = generate_subseeds::<D>(TOP_SALT, seed, plr_roots.len(), MDP_SALT_SIZE);
 
     // Step 7: KDF smt roots
     let top_salted_roots: Vec<[u8; 32]> = plr_roots
@@ -516,6 +524,15 @@ fn log_2(x: u32) -> u32 {
 
 fn compute_mdp_height(base: u32, max_number_bits: usize) -> u32 {
     log_2(max_number_bits as u32 / log_2(base))
+}
+
+fn vec_to_array<T, const N: usize>(v: Vec<T>) -> [T; N] {
+    let boxed_slice = v.into_boxed_slice();
+    let boxed_array: Box<[T; N]> = match boxed_slice.try_into() {
+        Ok(ba) => ba,
+        Err(o) => panic!("Expected a Vec of length {} but it was {}", N, o.len()),
+    };
+    *boxed_array
 }
 
 #[cfg(test)]
