@@ -4,12 +4,6 @@ use blake3::Hasher as Blake3;
 use digest::Digest;
 use num_bigint::BigUint;
 
-use smt::index::TreeIndex;
-use smt::node_template::HashNodeSMT;
-use smt::traits::Serializable;
-use smt::utils::set_pos_best;
-use smt::{node_template, proof::MerkleProof, traits::InclusionProvable, tree::SparseMerkleTree};
-
 use crate::dp::{find_mdp, value_split_per_base};
 use crate::errors::HWError;
 use crate::hashes::{
@@ -17,14 +11,92 @@ use crate::hashes::{
     TOP_SALT,
 };
 use crate::shuffle::deterministic_index_shuffling;
+use smt::index::TreeIndex;
+use smt::node_template::HashNodeSMT;
+use smt::traits::Serializable;
+use smt::utils::set_pos_best;
+use smt::{node_template, proof::MerkleProof, traits::InclusionProvable, tree::SparseMerkleTree};
+use std::marker::PhantomData;
 
 type SMT<P> = SparseMerkleTree<P>;
+
+pub struct HashWires<D: Digest> {
+    base: u32,
+    max_number_bits: usize,
+    commitment: Vec<u8>,
+    _d: PhantomData<D>,
+}
+
+pub struct HWProof {
+    plr_padding: Option<[u8; 32]>,
+    chain_nodes: Vec<[u8; 32]>,
+    mdp_salt: [u8; 16],
+    smt_inclusion_proof: Vec<u8>,
+}
+
+impl<D: Digest> HashWires<D> {
+    pub fn commit(
+        seed: &[u8],
+        value: &BigUint,
+        base: u32,
+        max_number_bits: usize,
+    ) -> Result<Self, HWError> {
+        let mdp_smt_height = compute_mdp_height(base, max_number_bits);
+        let commitment =
+            commit_gen::<D>(value, base, &seed, max_number_bits, mdp_smt_height as usize)?;
+        Ok(Self {
+            base,
+            max_number_bits,
+            commitment,
+            _d: PhantomData,
+        })
+    }
+
+    pub fn prove(
+        &self,
+        seed: &[u8],
+        value: &BigUint,
+        threshold: &BigUint,
+    ) -> Result<HWProof, HWError> {
+        let mdp_smt_height = compute_mdp_height(self.base, self.max_number_bits);
+        let result = bigger_than_proof_gen::<D>(
+            threshold,
+            value,
+            self.base,
+            seed,
+            self.max_number_bits,
+            mdp_smt_height as usize,
+        )?;
+        Ok(HWProof {
+            plr_padding: result.1,
+            chain_nodes: result.2,
+            mdp_salt: result.3,
+            smt_inclusion_proof: result.4,
+        })
+    }
+
+    pub fn verify(&self, proof: &HWProof, threshold: &BigUint) -> Result<(), HWError> {
+        let result = proof_verify::<D>(
+            threshold,
+            self.base,
+            &self.commitment,
+            &proof.plr_padding,
+            &proof.chain_nodes,
+            &proof.mdp_salt,
+            &proof.smt_inclusion_proof,
+        );
+        match result? {
+            true => Ok(()),
+            false => Err(HWError::ProofVerificationError),
+        }
+    }
+}
 
 // /// Function to generate HW commitments
 // #[allow(dead_code)]
 // pub fn generate_commitment(max_digits: u32, base: u32, value_base10_string: &str, seed: &[u8]) {
 //     // num to BigInt
-//     let value_bigint = BigUint::from_str_radix(value_base10_string, 10).unwrap();
+//     let value_bigint = BigUint::from_str_radix(value_base10_string, 10)?;
 //
 //     // vector of DP
 //     let _dp = find_dp_u32(&value_bigint.to_str_radix(base), base);
@@ -65,7 +137,7 @@ pub fn bigger_than_proof_gen<D: Digest>(
 
     // Step A: pick mdp index
     // TODO remove unwrap()
-    let mdp_index = pick_mdp_index(proving_value, &mdp).unwrap();
+    let mdp_index = pick_mdp_index(proving_value, &mdp)?;
 
     // Step B: split proving value per base (bitlength digits)
     let proving_value_split = value_split_per_base(proving_value, bitlength);
@@ -93,7 +165,7 @@ pub fn bigger_than_proof_gen<D: Digest>(
     let shuffled_indexes = deterministic_index_shuffling(
         top_salted_roots.len(),
         max_number_bits / bitlength,
-        <[u8; 32]>::try_from(seed).unwrap(),
+        <[u8; 32]>::try_from(seed).map_err(|_| HWError::SeedLengthError)?,
     );
 
     // Step 9: Compute final root (HW commitment)
@@ -102,7 +174,7 @@ pub fn bigger_than_proof_gen<D: Digest>(
         &shuffled_indexes?,
         mdp_smt_height,
         mdp_index,
-    );
+    )?;
 
     // Step C: pick hashchain nodes for the proving value
     let chain_nodes = proving_value_chain_nodes(&chains, &splits, &proving_value_split, mdp_index);
@@ -124,7 +196,7 @@ pub fn proof_verify<D: Digest>(
     chain_nodes: &[[u8; 32]],
     mdp_salt: &[u8; 16],
     smt_inclusion_proof: &[u8],
-) -> bool {
+) -> Result<bool, HWError> {
     let bitlength = compute_bitlength(base);
     let requested_value_split = value_split_per_base(proving_value, bitlength);
     let mdp_chain_nodes: Vec<[u8; 32]> = chain_nodes
@@ -154,13 +226,13 @@ pub fn proof_verify<D: Digest>(
     let salted_mdp_root = salted_hash::<D>(mdp_salt, &mdp_root);
 
     // Decode the Merkle proof.
-    let deserialized_proof =
-        MerkleProof::<HashNodeSMT<Blake3>>::deserialize(&smt_inclusion_proof).unwrap();
+    let deserialized_proof = MerkleProof::<HashNodeSMT<Blake3>>::deserialize(&smt_inclusion_proof)
+        .map_err(|_| HWError::MerkleProofDecodingError)?;
 
     let commitment_node = HashNodeSMT::<Blake3>::new(commitment.to_owned());
     let smt_mdp_node = HashNodeSMT::<Blake3>::new(salted_mdp_root.to_vec());
 
-    deserialized_proof.verify_inclusion_proof(&[smt_mdp_node], &commitment_node)
+    Ok(deserialized_proof.verify_inclusion_proof(&[smt_mdp_node], &commitment_node))
 }
 
 pub fn commit_gen<D: Digest>(
@@ -203,13 +275,17 @@ pub fn commit_gen<D: Digest>(
     let shuffled_indexes = deterministic_index_shuffling(
         top_salted_roots.len(),
         max_number_bits / bitlength,
-        <[u8; 32]>::try_from(seed).unwrap(),
+        <[u8; 32]>::try_from(seed).map_err(|_| HWError::SeedLengthError)?,
     );
 
     // Step 9: Compute final root (HW commitment)
     let hw_commitment = final_smt_root::<D>(&top_salted_roots, &shuffled_indexes?, mdp_smt_height);
     Ok(hw_commitment)
 }
+
+//////////////////////
+// Helper functions //
+//////////////////////
 
 /// Get required chain nodes for proofs
 fn proving_value_chain_nodes(
@@ -231,13 +307,13 @@ fn proving_value_chain_nodes(
 
 /// find the mdp index where proving_value <= mdp[i]
 /// TODO: use binary search
-fn pick_mdp_index(proving_value: &BigUint, mdp: &[BigUint]) -> Result<usize, &'static str> {
+fn pick_mdp_index(proving_value: &BigUint, mdp: &[BigUint]) -> Result<usize, HWError> {
     for i in (0..mdp.len()).rev() {
         if proving_value <= &mdp[i] {
             return Ok(i);
         }
     }
-    Err("Proving value is bigger than the issued value")
+    Err(HWError::MDPError)
 }
 
 /// Compute base's bitlength.
@@ -278,7 +354,7 @@ fn final_smt_root_and_proof<D: Digest>(
     shuffled_indexes: &[usize],
     tree_height: usize,
     leaf_index: usize,
-) -> (Vec<u8>, Vec<u8>) {
+) -> Result<(Vec<u8>, Vec<u8>), HWError> {
     let mut smt_leaves: Vec<(TreeIndex, node_template::HashNodeSMT<Blake3>)> = top_salted_roots
         .iter()
         .enumerate()
@@ -298,10 +374,10 @@ fn final_smt_root_and_proof<D: Digest>(
 
     let inclusion_proof =
         MerkleProof::<node_template::HashNodeSMT<Blake3>>::generate_inclusion_proof(&tree, &[node])
-            .unwrap();
+            .ok_or(HWError::InclusionProofError)?;
     let smt_proof = inclusion_proof.serialize();
 
-    (tree.get_root_raw().serialize(), smt_proof)
+    Ok((tree.get_root_raw().serialize(), smt_proof))
 }
 
 fn mdp_splits(mdp: &[BigUint], bitlength: usize) -> Vec<Vec<u8>> {
@@ -350,52 +426,92 @@ fn wires(splits: &[Vec<u8>], chains: &[Vec<[u8; 32]>]) -> Vec<Vec<[u8; 32]>> {
         .collect()
 }
 
+const fn num_bits<T>() -> usize {
+    std::mem::size_of::<T>() * 8
+}
+
+fn log_2(x: u32) -> u32 {
+    assert!(x > 0);
+    num_bits::<u32>() as u32 - x.leading_zeros() - 1
+}
+
+fn compute_mdp_height(base: u32, max_number_bits: usize) -> u32 {
+    log_2(max_number_bits as u32 / log_2(base))
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
     use num_traits::Num;
-
+    use rand_core::{OsRng, RngCore};
     use smt::utils::print_output;
 
-    use super::*;
+    fn prove_and_verify(
+        base: u32,
+        max_number_bits: usize,
+        value_str: &str,
+        threshold_str: &str,
+    ) -> Result<(), HWError> {
+        let value = BigUint::from_str_radix(value_str, base).unwrap();
+        let threshold = BigUint::from_str_radix(threshold_str, base).unwrap();
+
+        let mut rng = OsRng;
+        let mut seed = vec![0u8; 32];
+        rng.fill_bytes(&mut seed);
+
+        let hw = HashWires::<Blake3>::commit(&seed, &value, base, max_number_bits)?;
+        let proof = hw.prove(&seed, &value, &threshold)?;
+        hw.verify(&proof, &threshold)
+    }
 
     #[test]
-    fn test_hashwires() {
-        let max_digits = 32;
+    fn test_proof_success() -> Result<(), HWError> {
+        assert_eq!(true, prove_and_verify(4, 32, "212", "201").is_ok(),);
+        Ok(())
+    }
+
+    #[test]
+    fn test_proof_failure() -> Result<(), HWError> {
+        assert_eq!(false, prove_and_verify(4, 32, "201", "212").is_ok(),);
+        Ok(())
+    }
+
+    #[test]
+    fn test_hashwires_inner_functions() -> Result<(), HWError> {
+        let max_number_bits = 32;
         let base = 4;
         let mdp_tree_height = 4;
         let value = BigUint::from_str_radix("212", 4).unwrap();
         let seed = [0u8; 32];
-        let proving_value = BigUint::from_str_radix("201", 4).unwrap();
+        let threshold = BigUint::from_str_radix("201", 4).unwrap();
         let hw_commit_and_proof = bigger_than_proof_gen::<Blake3>(
-            &proving_value,
+            &threshold,
             &value,
             base,
             &seed,
-            max_digits,
+            max_number_bits,
             mdp_tree_height,
-        )
-        .unwrap();
+        )?;
         assert_eq!(
             hex::encode(&hw_commit_and_proof.0),
             "b3cbed18644291b4cc300c265609432dc9797d29e4123bd0bf763c9299cbdc6f"
         );
         assert!(proof_verify::<Blake3>(
-            &proving_value,
+            &threshold,
             base,
             &hw_commit_and_proof.0,
             &hw_commit_and_proof.1,
             &hw_commit_and_proof.2,
             &hw_commit_and_proof.3,
-            &hw_commit_and_proof.4,
-        ));
+            &hw_commit_and_proof.4
+        )?);
 
         let max_digits = 32;
         let base = 16;
         let mdp_tree_height = 3;
         let value = BigUint::from_str_radix("1AB", 16).unwrap();
         let seed = [0u8; 32];
-        let hw_commit =
-            commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height).unwrap();
+        let hw_commit = commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height)?;
         assert_eq!(
             hex::encode(hw_commit),
             "1c9faca8f6159f8e5041bebd823de9e3c252f25a8071543ee6c3a4c1c974d411"
@@ -406,8 +522,7 @@ mod tests {
         let mdp_tree_height = 3;
         let value = BigUint::from_str_radix("18446744073709551614", 10).unwrap();
         let seed = [0u8; 32];
-        let hw_commit =
-            commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height).unwrap();
+        let hw_commit = commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height)?;
         assert_eq!(
             hex::encode(hw_commit),
             "2647d6e7aaa0c752f4adb7cff9274cb7f4f6a7952002741b85628dc8ac06a81e"
@@ -418,16 +533,17 @@ mod tests {
         let mdp_tree_height = 4;
         let value = BigUint::from_str_radix("23479534957845324957342523490585324", 10).unwrap();
         let seed = [0u8; 32];
-        let hw_commit =
-            commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height).unwrap();
+        let hw_commit = commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height)?;
         assert_eq!(
             hex::encode(hw_commit),
             "84dd666be754f4bbe7a344d8b6dc8f0fa3c708dd5dbd45904301b84ba2ec37ff"
         );
+
+        Ok(())
     }
 
     #[test]
-    fn testsmt() {
+    fn test_smt() -> Result<(), HWError> {
         let tree_height = 4;
         let mut tree: SMT<node_template::HashNodeSMT<Blake3>> = SMT::new(tree_height);
         let mut v = vec![];
@@ -449,26 +565,30 @@ mod tests {
         tree.build(&v);
         println!("{}", tree.get_leaves().len());
         print_output(&tree);
+
+        Ok(())
     }
 
     #[test]
-    fn test_pick_mdp_index() {
+    fn test_pick_mdp_index() -> Result<(), HWError> {
         let mdp = vec![
             BigUint::from(3143u16),
             BigUint::from(3139u16),
             BigUint::from(3099u16),
             BigUint::from(2999u16),
         ];
-        assert_eq!(pick_mdp_index(&BigUint::from(3142u16), &mdp).unwrap(), 0);
-        assert_eq!(pick_mdp_index(&BigUint::from(3140u16), &mdp).unwrap(), 0);
+        assert_eq!(pick_mdp_index(&BigUint::from(3142u16), &mdp)?, 0);
+        assert_eq!(pick_mdp_index(&BigUint::from(3140u16), &mdp)?, 0);
 
-        assert_eq!(pick_mdp_index(&BigUint::from(3139u16), &mdp).unwrap(), 1);
-        assert_eq!(pick_mdp_index(&BigUint::from(3100u16), &mdp).unwrap(), 1);
+        assert_eq!(pick_mdp_index(&BigUint::from(3139u16), &mdp)?, 1);
+        assert_eq!(pick_mdp_index(&BigUint::from(3100u16), &mdp)?, 1);
 
-        assert_eq!(pick_mdp_index(&BigUint::from(3099u16), &mdp).unwrap(), 2);
-        assert_eq!(pick_mdp_index(&BigUint::from(3000u16), &mdp).unwrap(), 2);
+        assert_eq!(pick_mdp_index(&BigUint::from(3099u16), &mdp)?, 2);
+        assert_eq!(pick_mdp_index(&BigUint::from(3000u16), &mdp)?, 2);
 
-        assert_eq!(pick_mdp_index(&BigUint::from(2999u16), &mdp).unwrap(), 3);
-        assert_eq!(pick_mdp_index(&BigUint::from(0u16), &mdp).unwrap(), 3);
+        assert_eq!(pick_mdp_index(&BigUint::from(2999u16), &mdp)?, 3);
+        assert_eq!(pick_mdp_index(&BigUint::from(0u16), &mdp)?, 3);
+
+        Ok(())
     }
 }
