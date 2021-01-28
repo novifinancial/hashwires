@@ -28,7 +28,7 @@ const PADDING_NUM_BYTE_NUM: usize = 2;
 #[derive(Debug, Clone, Default)]
 pub struct MerkleProof<V: Clone + Default + Mergeable + ProofExtractable>
 where
-    <V as ProofExtractable>::ProofNode: Debug + Clone + Default + Eq + Mergeable + Serializable,
+    <V as ProofExtractable>::ProofNode: Clone + Default + Eq + Mergeable + Serializable,
 {
     // The tree indexes of the proved leaves.
     indexes: Vec<TreeIndex>,
@@ -39,7 +39,7 @@ where
 
 impl<V: Default + Clone + Mergeable + ProofExtractable> MerkleProof<V>
 where
-    <V as ProofExtractable>::ProofNode: Debug + Clone + Default + Eq + Mergeable + Serializable,
+    <V as ProofExtractable>::ProofNode: Clone + Default + Eq + Mergeable + Serializable,
 {
     /// The constructor for proof of a single node.
     pub fn new(_idx: TreeIndex) -> MerkleProof<V> {
@@ -211,7 +211,7 @@ where
 
 impl<V: Default + Clone + Mergeable + ProofExtractable> Serializable for MerkleProof<V>
 where
-    <V as ProofExtractable>::ProofNode: Debug + Clone + Default + Eq + Mergeable + Serializable,
+    <V as ProofExtractable>::ProofNode: Clone + Default + Eq + Mergeable + Serializable,
 {
     /// Encode a proof in the format: ```batch_num || tree_indexes || sibling_num || siblings```.
     ///
@@ -287,7 +287,7 @@ where
 impl<P: Clone + Default + Mergeable + Paddable + ProofExtractable> InclusionProvable
     for MerkleProof<P>
 where
-    <P as ProofExtractable>::ProofNode: Debug + Clone + Default + Eq + Mergeable + Serializable,
+    <P as ProofExtractable>::ProofNode: Clone + Default + Eq + Mergeable + Serializable,
 {
     type ProofNodeType = <P as ProofExtractable>::ProofNode;
     type TreeStruct = SparseMerkleTree<P>;
@@ -344,7 +344,7 @@ where
 pub struct RandomSamplingProof<
     V: Clone + Default + Mergeable + ProofExtractable + Paddable + PaddingProvable,
 > where
-    V::ProofNode: Debug + Default + Eq + Clone + Mergeable + Serializable,
+    V::ProofNode: Default + Eq + Clone + Mergeable + Serializable,
     V::PaddingProof: Default + Eq + Clone + Serializable,
 {
     index: TreeIndex, // The tree index of teh proved node.
@@ -356,7 +356,7 @@ pub struct RandomSamplingProof<
 impl<V: Clone + Default + Mergeable + Paddable + PaddingProvable + ProofExtractable>
     RandomSamplingProof<V>
 where
-    V::ProofNode: Debug + Default + Eq + Clone + Mergeable + Serializable,
+    V::ProofNode: Default + Eq + Clone + Mergeable + Serializable,
     V::PaddingProof: Default + Eq + Clone + Serializable,
 {
     /// The constructor.
@@ -418,7 +418,7 @@ where
 impl<V: Clone + Default + Mergeable + Paddable + PaddingProvable + ProofExtractable> Serializable
     for RandomSamplingProof<V>
 where
-    V::ProofNode: Debug + Default + Eq + Clone + Mergeable + Serializable,
+    V::ProofNode: Default + Eq + Clone + Mergeable + Serializable,
     V::PaddingProof: Default + Eq + Clone + Serializable,
 {
     /// Encode a proof in the format: ```tree_index || padding_num || padding_proofs || merkle_proof || leaves```.
@@ -501,7 +501,7 @@ where
 impl<V: Clone + Default + Mergeable + Paddable + PaddingProvable + ProofExtractable>
     RandomSampleable for RandomSamplingProof<V>
 where
-    V::ProofNode: Debug + Default + Eq + Clone + Mergeable + Serializable,
+    V::ProofNode: Default + Eq + Clone + Mergeable + Serializable,
     V::PaddingProof: Default + Eq + Clone + Serializable,
 {
     type ProofNodeType = V::ProofNode;
@@ -698,7 +698,7 @@ where
 impl<V: Clone + Default + Mergeable + Paddable + PaddingProvable + ProofExtractable>
     RandomSamplingProof<V>
 where
-    V::ProofNode: Debug + Default + Eq + Clone + Mergeable + Serializable,
+    V::ProofNode: Default + Eq + Clone + Mergeable + Serializable,
     V::PaddingProof: Default + Eq + Clone + Serializable,
 {
     fn verify_padding_nodes(
