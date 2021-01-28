@@ -1,4 +1,3 @@
-use blake3::Hasher as Blake3;
 use digest::Digest;
 use std::convert::TryFrom;
 
@@ -11,7 +10,7 @@ pub const PADDING_SALT: &[u8; 32] = b"21234567890123456789012345678901";
 #[allow(dead_code)]
 pub fn plr_accumulator<D: Digest>(
     seed: &[u8],
-    list: &Vec<[u8; 32]>,
+    list: &[[u8; 32]],
     max_length: usize,
     desired_length: usize,
 ) -> ([u8; 32], Option<[u8; 32]>) {
@@ -27,12 +26,9 @@ pub fn plr_accumulator<D: Digest>(
     };
 
     let mut plr_path_node: Option<[u8; 32]> = None;
-    match padding_node {
-        Some(p) => {
-            hasher.update(&p);
-            plr_path_node = Some(p);
-        }
-        None => {}
+    if let Some(p) = padding_node {
+        hasher.update(&p);
+        plr_path_node = Some(p);
     }
 
     let mut output = [0; 32];
@@ -95,8 +91,8 @@ pub fn compute_hash_chains<D: Digest>(
     let first_chain = full_hash_chain::<D>(&seeds[0], most_significant_digit as usize + 1);
     output.push(first_chain);
 
-    for i in 1..seeds.len() {
-        output.push(full_hash_chain::<D>(&seeds[i], base as usize));
+    for elem in seeds.iter().skip(1) {
+        output.push(full_hash_chain::<D>(elem, base as usize));
     }
     output
 }
@@ -132,68 +128,74 @@ pub fn generate_subseeds<D: Digest>(
     seeds
 }
 
-#[test]
-fn test_hash_chain() {
+#[cfg(test)]
+mod tests {
+    use super::*;
     use blake3::Hasher as Blake3;
 
-    let hash_chain_output = hash_chain::<Blake3>(b"01234567890123456789012345678901", 3);
-    assert_eq!(
-        hex::encode(hash_chain_output),
-        "9dce6dd3c7e70a6e5052fe1626b97d5ff50f59764513950df43faf76f15efc5c"
-    );
-}
+    #[test]
+    fn test_hash_chain() {
+        use blake3::Hasher as Blake3;
 
-#[test]
-fn test_full_hash_chain() {
-    use blake3::Hasher as Blake3;
+        let hash_chain_output = hash_chain::<Blake3>(b"01234567890123456789012345678901", 3);
+        assert_eq!(
+            hex::encode(hash_chain_output),
+            "9dce6dd3c7e70a6e5052fe1626b97d5ff50f59764513950df43faf76f15efc5c"
+        );
+    }
 
-    let chain = full_hash_chain::<Blake3>(b"01234567890123456789012345678901", 3);
+    #[test]
+    fn test_full_hash_chain() {
+        use blake3::Hasher as Blake3;
 
-    assert_eq!(chain.len(), 3);
-    assert_eq!(
-        hex::encode(chain[0]),
-        "3031323334353637383930313233343536373839303132333435363738393031"
-    );
-    assert_eq!(
-        hex::encode(chain[1]),
-        "1952cbec4fc2d03d99a121bdae24cb8333a6e8944ccf1f5ac4c3b4f4ee744edf"
-    );
-    assert_eq!(
-        hex::encode(chain[2]),
-        "df327beebc850ce697953eb99ecdf8f2979b5f103a73c45aa4b1415192032ef6"
-    );
-}
+        let chain = full_hash_chain::<Blake3>(b"01234567890123456789012345678901", 3);
 
-#[test]
-fn test_compute_hashchains() {
-    let seed = [0u8; 32];
-    let chains = compute_hash_chains::<Blake3>(&seed, 3, 4, 2);
-    assert_eq!(chains.len(), 3);
-    assert_eq!(chains[0].len(), 3);
-    assert_eq!(chains[1].len(), 4);
-    assert_eq!(chains[2].len(), 4);
-}
+        assert_eq!(chain.len(), 3);
+        assert_eq!(
+            hex::encode(chain[0]),
+            "3031323334353637383930313233343536373839303132333435363738393031"
+        );
+        assert_eq!(
+            hex::encode(chain[1]),
+            "1952cbec4fc2d03d99a121bdae24cb8333a6e8944ccf1f5ac4c3b4f4ee744edf"
+        );
+        assert_eq!(
+            hex::encode(chain[2]),
+            "df327beebc850ce697953eb99ecdf8f2979b5f103a73c45aa4b1415192032ef6"
+        );
+    }
 
-#[test]
-fn test_plr() {
-    let seed = [0u8; 32];
-    let values = vec![[1u8; 32], [2u8; 32], [3u8; 32]];
+    #[test]
+    fn test_compute_hashchains() {
+        let seed = [0u8; 32];
+        let chains = compute_hash_chains::<Blake3>(&seed, 3, 4, 2);
+        assert_eq!(chains.len(), 3);
+        assert_eq!(chains[0].len(), 3);
+        assert_eq!(chains[1].len(), 4);
+        assert_eq!(chains[2].len(), 4);
+    }
 
-    let plr = plr_accumulator::<Blake3>(&seed, &values, 3, 3);
-    assert!(plr.1.is_none());
-    assert_eq!(
-        hex::encode(plr.0),
-        "0082c1dc66375f9ab20e8d699d48d9903fcae459330c03215a9909faaa0cf183"
-    );
+    #[test]
+    fn test_plr() {
+        let seed = [0u8; 32];
+        let values = vec![[1u8; 32], [2u8; 32], [3u8; 32]];
 
-    let plr = plr_accumulator::<Blake3>(&seed, &values, 4, 3);
-    assert!(plr.1.is_some());
-    assert_eq!(
-        hex::encode(plr.0),
-        "4accab47316eb7c538da7b940ce45e459572fd194ce25f4d5d42ab753cbf3fb4"
-    );
-    assert_eq!(
-        hex::encode(plr.0),
-        "4accab47316eb7c538da7b940ce45e459572fd194ce25f4d5d42ab753cbf3fb4"
-    );
+        let plr = plr_accumulator::<Blake3>(&seed, &values, 3, 3);
+        assert!(plr.1.is_none());
+        assert_eq!(
+            hex::encode(plr.0),
+            "0082c1dc66375f9ab20e8d699d48d9903fcae459330c03215a9909faaa0cf183"
+        );
+
+        let plr = plr_accumulator::<Blake3>(&seed, &values, 4, 3);
+        assert!(plr.1.is_some());
+        assert_eq!(
+            hex::encode(plr.0),
+            "4accab47316eb7c538da7b940ce45e459572fd194ce25f4d5d42ab753cbf3fb4"
+        );
+        assert_eq!(
+            hex::encode(plr.0),
+            "4accab47316eb7c538da7b940ce45e459572fd194ce25f4d5d42ab753cbf3fb4"
+        );
+    }
 }

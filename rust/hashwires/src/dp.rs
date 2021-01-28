@@ -61,7 +61,7 @@ fn to_ints(vals: Vec<String>) -> Vec<u32> {
         let v = i.parse::<u32>().unwrap();
         ret.push(v);
     }
-    ret.sort();
+    ret.sort_unstable();
     ret.reverse();
     ret
 }

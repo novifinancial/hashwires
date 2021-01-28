@@ -1,3 +1,4 @@
+use crate::errors::HWError;
 use rand::SeedableRng;
 use rand::{Rng, RngCore};
 use rand_chacha::ChaCha12Rng;
@@ -16,7 +17,7 @@ pub trait Shuffler<T> {
         data: &mut Vec<T>,
         shuffle_len: usize,
         rng: &mut R,
-    ) -> Result<(), &str>
+    ) -> Result<(), HWError>
     where
         T: Clone,
         R: RngCore + ?Sized;
@@ -24,14 +25,19 @@ pub trait Shuffler<T> {
 
 impl<T> Shuffler<T> for Durstenfeld {
     // TODO: consider descriptive error types
-    fn shuffle<R>(&mut self, data: &mut Vec<T>, shuffle_len: usize, rng: &mut R) -> Result<(), &str>
+    fn shuffle<R>(
+        &mut self,
+        data: &mut Vec<T>,
+        shuffle_len: usize,
+        rng: &mut R,
+    ) -> Result<(), HWError>
     where
         T: Clone,
         R: RngCore + ?Sized,
     {
         let dlen = data.len();
         if dlen < shuffle_len {
-            return Err("shuffle_len can be larger than input data length");
+            return Err(HWError::ShuffleError);
         }
 
         for i in 0..shuffle_len {
@@ -48,34 +54,39 @@ pub fn deterministic_index_shuffling(
     indexes_required: usize,
     max_num: usize,
     seed: [u8; 32],
-) -> Vec<usize> {
+) -> Result<Vec<usize>, HWError> {
     let mut input = (0..max_num).collect();
     let mut rng = ChaCha12Rng::from_seed(seed);
     let mut durstenfeld = Durstenfeld::default();
-    durstenfeld.shuffle(&mut input, indexes_required, &mut rng);
+    durstenfeld.shuffle(&mut input, indexes_required, &mut rng)?;
     input.truncate(indexes_required);
-    input
+    Ok(input)
 }
 
-#[test]
-fn test_deterministic_durstenfeld() {
-    use rand::SeedableRng;
-    use rand_chacha::ChaCha12Rng;
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let seed = [2u8; 32];
-    let mut durstenfeld = Durstenfeld::default();
+    #[test]
+    fn test_deterministic_durstenfeld() {
+        use rand::SeedableRng;
+        use rand_chacha::ChaCha12Rng;
 
-    // Test for full length.
-    let mut input = vec![1, 2, 3, 4, 5];
-    let mut rng = ChaCha12Rng::from_seed(seed);
-    let length = input.len();
-    durstenfeld.shuffle(&mut input, length, &mut rng);
-    assert_eq!(&input, &[5, 3, 4, 1, 2]);
+        let seed = [2u8; 32];
+        let mut durstenfeld = Durstenfeld::default();
 
-    // Test for 2 elements only.
-    let mut input = vec![1, 2, 3, 4, 5];
-    let mut rng = ChaCha12Rng::from_seed(seed);
-    let length = 2;
-    durstenfeld.shuffle(&mut input, length, &mut rng);
-    assert_eq!(&input, &[5, 3, 2, 4, 1]);
+        // Test for full length.
+        let mut input = vec![1, 2, 3, 4, 5];
+        let mut rng = ChaCha12Rng::from_seed(seed);
+        let length = input.len();
+        durstenfeld.shuffle(&mut input, length, &mut rng).unwrap();
+        assert_eq!(&input, &[5, 3, 4, 1, 2]);
+
+        // Test for 2 elements only.
+        let mut input = vec![1, 2, 3, 4, 5];
+        let mut rng = ChaCha12Rng::from_seed(seed);
+        let length = 2;
+        durstenfeld.shuffle(&mut input, length, &mut rng).unwrap();
+        assert_eq!(&input, &[5, 3, 2, 4, 1]);
+    }
 }

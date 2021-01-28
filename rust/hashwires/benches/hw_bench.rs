@@ -1,5 +1,5 @@
 use blake3::Hasher as Blake3;
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use num_bigint::BigUint;
 use num_traits::Num;
 
@@ -230,7 +230,8 @@ pub fn hw_proof_verify_base4(c: &mut Criterion) {
         &seed,
         max_digits,
         mdp_tree_height,
-    );
+    )
+    .unwrap();
 
     c.bench_function("hw_proof_verify_base4", |bench| {
         bench.iter(|| {
@@ -262,7 +263,8 @@ pub fn hw_proof_verify_base16(c: &mut Criterion) {
         &seed,
         max_digits,
         mdp_tree_height,
-    );
+    )
+    .unwrap();
 
     c.bench_function("hw_proof_verify_base16", |bench| {
         bench.iter(|| {
@@ -294,7 +296,8 @@ pub fn hw_proof_verify_base16_max(c: &mut Criterion) {
         &seed,
         max_digits,
         mdp_tree_height,
-    );
+    )
+    .unwrap();
 
     c.bench_function("hw_proof_verify_base16_max", |bench| {
         bench.iter(|| {
@@ -326,7 +329,8 @@ pub fn hw_proof_verify_base256_max(c: &mut Criterion) {
         &seed,
         max_digits,
         mdp_tree_height,
-    );
+    )
+    .unwrap();
 
     c.bench_function("hw_proof_verify_base256_max", |bench| {
         bench.iter(|| {
@@ -358,7 +362,8 @@ pub fn hw_proof_verify_base256_minimum_value(c: &mut Criterion) {
         &seed,
         max_digits,
         mdp_tree_height,
-    );
+    )
+    .unwrap();
 
     c.bench_function("hw_proof_verify_base256_minimum_value", |bench| {
         bench.iter(|| {
@@ -390,7 +395,8 @@ pub fn hw_proof_verify_base256_1million(c: &mut Criterion) {
         &seed,
         max_digits,
         mdp_tree_height,
-    );
+    )
+    .unwrap();
 
     c.bench_function("hw_proof_verify_base256_1million", |bench| {
         bench.iter(|| {
