@@ -1,6 +1,3 @@
-#![allow(incomplete_features)]
-#![feature(const_generics)]
-
 mod dp;
 mod hashes;
 pub mod hashwires;
