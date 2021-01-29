@@ -63,6 +63,7 @@ mod tests {
     use crate::errors::HWError;
     use crate::hashwires::{Commitment, Proof};
     use blake3::Hasher as Blake3;
+    use generic_array::typenum::Unsigned;
     use rand_core::{OsRng, RngCore};
 
     #[test]
@@ -84,12 +85,12 @@ mod tests {
         let mut chain_nodes_flattened = vec![];
         let num_chain_nodes = rng.next_u32() % 5;
         for _ in 0..num_chain_nodes {
-            let mut cn = [0u8; crate::hashwires::CHAIN_NODES_SIZE];
+            let mut cn = vec![0u8; crate::hashwires::ChainNodesSize::to_usize()];
             rng.fill_bytes(&mut cn);
             chain_nodes_flattened.extend_from_slice(&cn[..]);
         }
 
-        let mut mdp_salt = [0u8; crate::hashwires::MDP_SALT_SIZE];
+        let mut mdp_salt = vec![0u8; crate::hashwires::MDPSaltSize::to_usize()];
         rng.fill_bytes(&mut mdp_salt);
 
         let mut smt_inclusion_proof = [0u8; 32];
@@ -103,7 +104,7 @@ mod tests {
         .concat();
 
         if has_plr_padding {
-            let mut plr_padding = [0u8; crate::hashwires::PLR_PADDING_SIZE];
+            let mut plr_padding = vec![0u8; crate::hashwires::PLRPaddingSize::to_usize()];
             rng.fill_bytes(&mut plr_padding);
             bytes.extend_from_slice(&plr_padding[..]);
         }

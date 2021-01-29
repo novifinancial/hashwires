@@ -1,6 +1,10 @@
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 
 use digest::Digest;
+use generic_array::{
+    typenum::{Unsigned, U16, U32},
+    GenericArray,
+};
 use num_bigint::BigUint;
 
 use crate::dp::{find_mdp, value_split_per_base};
@@ -20,9 +24,9 @@ use std::marker::PhantomData;
 
 type SMT<P> = SparseMerkleTree<P>;
 
-pub(crate) const PLR_PADDING_SIZE: usize = 32;
-pub(crate) const CHAIN_NODES_SIZE: usize = 32;
-pub(crate) const MDP_SALT_SIZE: usize = 16;
+pub(crate) type PLRPaddingSize = U32;
+pub(crate) type ChainNodesSize = U32;
+pub(crate) type MDPSaltSize = U16;
 
 pub struct Commitment<D: Hash> {
     base: u32,
@@ -116,9 +120,9 @@ impl<D: Hash> Commitment<D> {
 }
 
 pub struct Proof {
-    plr_padding: Option<[u8; PLR_PADDING_SIZE]>,
-    chain_nodes: Vec<[u8; CHAIN_NODES_SIZE]>,
-    mdp_salt: [u8; MDP_SALT_SIZE],
+    plr_padding: Option<GenericArray<u8, PLRPaddingSize>>,
+    chain_nodes: Vec<GenericArray<u8, ChainNodesSize>>,
+    mdp_salt: GenericArray<u8, MDPSaltSize>,
     smt_inclusion_proof: Vec<u8>,
 }
 
@@ -143,32 +147,26 @@ impl Proof {
 
     pub fn deserialize(input: &[u8]) -> Result<Self, HWError> {
         let (chain_nodes_flattened, remainder) = tokenize(&input, 2)?;
-        let (mdp_salt, remainder) = take_slice(&remainder, MDP_SALT_SIZE)?;
+        let (mdp_salt, remainder) = take_slice(&remainder, MDPSaltSize::to_usize())?;
         let (smt_inclusion_proof, remainder) = tokenize(&remainder, 2)?;
         let plr_padding = match remainder.is_empty() {
             true => None,
             false => {
-                let (padding, remainder) = take_slice(&remainder, PLR_PADDING_SIZE)?;
+                let (padding, remainder) = take_slice(&remainder, PLRPaddingSize::to_usize())?;
                 if !remainder.is_empty() {
                     return Err(HWError::SerializationError);
                 }
-                Some(
-                    <[u8; PLR_PADDING_SIZE]>::try_from(padding)
-                        .map_err(|_| HWError::SerializationError)?,
-                )
+                Some(GenericArray::clone_from_slice(&padding))
             }
         };
 
         let mut chain_nodes = vec![];
         let mut cn_index = 0;
         while cn_index < chain_nodes_flattened.len() {
-            chain_nodes.push(
-                <[u8; CHAIN_NODES_SIZE]>::try_from(
-                    &chain_nodes_flattened[cn_index..cn_index + CHAIN_NODES_SIZE],
-                )
-                .map_err(|_| HWError::SerializationError)?,
-            );
-            cn_index += CHAIN_NODES_SIZE;
+            chain_nodes.push(GenericArray::clone_from_slice(
+                &chain_nodes_flattened[cn_index..cn_index + ChainNodesSize::to_usize()],
+            ));
+            cn_index += ChainNodesSize::to_usize();
         }
         if cn_index != chain_nodes_flattened.len() {
             return Err(HWError::SerializationError);
@@ -177,8 +175,7 @@ impl Proof {
         Ok(Self {
             chain_nodes,
             plr_padding,
-            mdp_salt: <[u8; MDP_SALT_SIZE]>::try_from(mdp_salt)
-                .map_err(|_| HWError::SerializationError)?,
+            mdp_salt: GenericArray::clone_from_slice(&mdp_salt),
             smt_inclusion_proof,
         })
     }
@@ -213,9 +210,9 @@ pub fn bigger_than_proof_gen<D: Hash>(
 ) -> Result<
     (
         Vec<u8>,
-        Option<[u8; 32]>,
-        Vec<[u8; 32]>,
-        [u8; MDP_SALT_SIZE],
+        Option<GenericArray<u8, PLRPaddingSize>>,
+        Vec<GenericArray<u8, ChainNodesSize>>,
+        GenericArray<u8, MDPSaltSize>,
         Vec<u8>,
     ),
     HWError,
@@ -252,7 +249,7 @@ pub fn bigger_than_proof_gen<D: Hash>(
     );
 
     // Step 6: compute top salts
-    let salts = generate_subseeds::<D>(TOP_SALT, seed, plr_roots.len(), MDP_SALT_SIZE);
+    let salts = generate_subseeds::<D, MDPSaltSize>(TOP_SALT, seed, plr_roots.len());
 
     // Step 7: KDF smt roots
     let top_salted_roots: Vec<[u8; 32]> = plr_roots
@@ -283,7 +280,7 @@ pub fn bigger_than_proof_gen<D: Hash>(
         hw_commitment.0,
         plr_proof,
         chain_nodes,
-        vec_to_array(salts[mdp_index].clone()),
+        salts[mdp_index],
         hw_commitment.1,
     ))
 }
@@ -292,9 +289,9 @@ pub fn proof_verify<D: Hash>(
     proving_value: &BigUint,
     base: u32,
     commitment: &[u8],
-    plr_padding: &Option<[u8; 32]>,
-    chain_nodes: &[[u8; 32]],
-    mdp_salt: &[u8; 16],
+    plr_padding: &Option<GenericArray<u8, PLRPaddingSize>>,
+    chain_nodes: &[GenericArray<u8, ChainNodesSize>],
+    mdp_salt: &GenericArray<u8, MDPSaltSize>,
     smt_inclusion_proof: &[u8],
 ) -> Result<bool, HWError> {
     let bitlength = compute_bitlength(base);
@@ -362,7 +359,7 @@ pub fn commit_gen<D: Hash>(
     let plr_roots = plr_roots::<D>(seed, &wires, max_number_bits / bitlength);
 
     // Step 6: compute top salts
-    let salts = generate_subseeds::<D>(TOP_SALT, seed, plr_roots.len(), MDP_SALT_SIZE);
+    let salts = generate_subseeds::<D, MDPSaltSize>(TOP_SALT, seed, plr_roots.len());
 
     // Step 7: KDF smt roots
     let top_salted_roots: Vec<[u8; 32]> = plr_roots
@@ -393,14 +390,16 @@ fn proving_value_chain_nodes(
     mdp_splits: &[Vec<u8>],
     proving_value_split: &[u8],
     mdp_index: usize,
-) -> Vec<[u8; 32]> {
+) -> Vec<GenericArray<u8, ChainNodesSize>> {
     proving_value_split
         .iter()
         .enumerate()
         .map(|(i, s)| {
             let chain_index = i + chains.len() - proving_value_split.len();
             let mdp_split_index = i + mdp_splits[mdp_index].len() - proving_value_split.len();
-            chains[chain_index][(mdp_splits[mdp_index][mdp_split_index] - *s) as usize]
+            let result =
+                chains[chain_index][(mdp_splits[mdp_index][mdp_split_index] - *s) as usize];
+            GenericArray::clone_from_slice(&result[..])
         })
         .collect()
 }
@@ -486,14 +485,21 @@ fn mdp_splits(mdp: &[BigUint], bitlength: usize) -> Vec<Vec<u8>> {
         .collect()
 }
 
+#[allow(clippy::type_complexity)]
 fn plr_roots_and_proof<D: Hash>(
     seed: &[u8],
     wires: &[Vec<[u8; 32]>],
     max_length: usize,
     mdp_index: usize,
     proving_value_split_size: usize,
-) -> (Vec<[u8; 32]>, Option<[u8; 32]>) {
-    let plr: Vec<([u8; 32], Option<[u8; 32]>)> = wires
+) -> (
+    Vec<GenericArray<u8, PLRPaddingSize>>,
+    Option<GenericArray<u8, PLRPaddingSize>>,
+) {
+    let plr: Vec<(
+        GenericArray<u8, PLRPaddingSize>,
+        Option<GenericArray<u8, PLRPaddingSize>>,
+    )> = wires
         .iter()
         .map(|v| plr_accumulator::<D>(seed, v, max_length, proving_value_split_size))
         .collect();
@@ -501,7 +507,11 @@ fn plr_roots_and_proof<D: Hash>(
     (plr.iter().map(|v| (*v).0).collect(), plr[mdp_index].1)
 }
 
-fn plr_roots<D: Hash>(seed: &[u8], wires: &[Vec<[u8; 32]>], max_length: usize) -> Vec<[u8; 32]> {
+fn plr_roots<D: Hash>(
+    seed: &[u8],
+    wires: &[Vec<[u8; 32]>],
+    max_length: usize,
+) -> Vec<GenericArray<u8, PLRPaddingSize>> {
     wires
         .iter()
         .map(|v| plr_accumulator::<D>(seed, v, max_length, v.len()).0)
@@ -537,15 +547,6 @@ fn log_2(x: u32) -> u32 {
 
 fn compute_mdp_height(base: u32, max_number_bits: usize) -> u32 {
     log_2(max_number_bits as u32 / log_2(base))
-}
-
-fn vec_to_array<T, const N: usize>(v: Vec<T>) -> [T; N] {
-    let boxed_slice = v.into_boxed_slice();
-    let boxed_array: Box<[T; N]> = match boxed_slice.try_into() {
-        Ok(ba) => ba,
-        Err(o) => panic!("Expected a Vec of length {} but it was {}", N, o.len()),
-    };
-    *boxed_array
 }
 
 #[cfg(test)]
