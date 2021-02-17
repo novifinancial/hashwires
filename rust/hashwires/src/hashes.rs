@@ -1,4 +1,4 @@
-use crate::hashwires::PLRPaddingSize;
+use crate::hashwires::PlrPaddingSize;
 use crate::traits::Hash;
 use digest::Digest;
 use generic_array::{typenum::Unsigned, ArrayLength, GenericArray};
@@ -15,27 +15,27 @@ pub fn plr_accumulator<D: Hash>(
     max_length: usize,
     desired_length: usize,
 ) -> (
-    GenericArray<u8, PLRPaddingSize>,
-    Option<GenericArray<u8, PLRPaddingSize>>,
+    GenericArray<u8, PlrPaddingSize>,
+    Option<GenericArray<u8, PlrPaddingSize>>,
 ) {
     let mut hasher = D::new();
     let mut plr_path_node = if list.len() < max_length {
         hasher.update(PADDING_SALT);
         hasher.update(seed);
-        let result = &hasher.finalize_reset()[..PLRPaddingSize::to_usize()];
+        let result = &hasher.finalize_reset()[..PlrPaddingSize::to_usize()];
         hasher.update(&result);
         Some(GenericArray::clone_from_slice(&result))
     } else {
         None
     };
 
-    let mut output = vec![0; PLRPaddingSize::to_usize()];
+    let mut output = vec![0; PlrPaddingSize::to_usize()];
     list.iter().enumerate().for_each(|(i, v)| {
         if i != 0 {
             hasher.update(&output);
             if i == list.len() - desired_length {
                 plr_path_node = Some(GenericArray::clone_from_slice(
-                    &output[..PLRPaddingSize::to_usize()],
+                    &output[..PlrPaddingSize::to_usize()],
                 ));
             }
         }

@@ -13,16 +13,16 @@ const BIT_SIZE: usize = 64;
 pub fn bp_proof_gen(c: &mut Criterion) {
     let pc_gens = PedersenGens::default();
     let bp_gens = BulletproofGens::new(BIT_SIZE, 1);
-    let mut prover_transcript = Transcript::new(&[]);
+    let mut transcript = Transcript::new(&[]);
     let secret: u64 = 18446744073709551614u64;
-    let blinding: Scalar = Scalar::from(11u64);
+    let blinding: Scalar = Scalar::from_bits([7u8; 32]);
 
     c.bench_function("bp_proof_gen", |bench| {
         bench.iter(|| {
             RangeProof::prove_single(
                 &bp_gens,
                 &pc_gens,
-                &mut prover_transcript,
+                &mut transcript,
                 secret,
                 &blinding,
                 BIT_SIZE,
@@ -34,7 +34,7 @@ pub fn bp_proof_gen(c: &mut Criterion) {
 pub fn bp_proof_gen_small_value(c: &mut Criterion) {
     let pc_gens = PedersenGens::default();
     let bp_gens = BulletproofGens::new(BIT_SIZE, 1);
-    let mut prover_transcript = Transcript::new(&[]);
+    let mut transcript = Transcript::new(&[]);
     let secret: u64 = 1u64;
     let blinding: Scalar = Scalar::from(11u64);
 
@@ -43,7 +43,7 @@ pub fn bp_proof_gen_small_value(c: &mut Criterion) {
             RangeProof::prove_single(
                 &bp_gens,
                 &pc_gens,
-                &mut prover_transcript,
+                &mut transcript,
                 secret,
                 &blinding,
                 BIT_SIZE,
@@ -52,5 +52,39 @@ pub fn bp_proof_gen_small_value(c: &mut Criterion) {
     });
 }
 
-criterion_group!(bp_group, bp_proof_gen, bp_proof_gen_small_value);
+pub fn bp_proof_verify(c: &mut Criterion) {
+    let pc_gens = PedersenGens::default();
+    let bp_gens = BulletproofGens::new(BIT_SIZE, 1);
+    let mut transcript = Transcript::new(&[]);
+    let secret: u64 = 18446744073709551614u64;
+    let blinding: Scalar = Scalar::from(11u64);
+    let (bp_proof, committed_value) = RangeProof::prove_single(
+        &bp_gens,
+        &pc_gens,
+        &mut transcript,
+        secret,
+        &blinding,
+        BIT_SIZE,
+    )
+    .unwrap();
+
+    c.bench_function("bp_proof_verify", |bench| {
+        bench.iter(|| {
+            bp_proof.verify_single(
+                &bp_gens,
+                &pc_gens,
+                &mut transcript,
+                &committed_value,
+                BIT_SIZE,
+            )
+        })
+    });
+}
+
+criterion_group!(
+    bp_group,
+    bp_proof_gen,
+    bp_proof_gen_small_value,
+    bp_proof_verify
+);
 criterion_main!(bp_group);

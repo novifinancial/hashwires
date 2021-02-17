@@ -8,7 +8,7 @@ use generic_array::{
 use num_bigint::BigUint;
 
 use crate::dp::{find_mdp, value_split_per_base};
-use crate::errors::HWError;
+use crate::errors::HwError;
 use crate::hashes::{
     compute_hash_chains, generate_subseeds, hash_chain, plr_accumulator, salted_hash, TOP_SALT,
 };
@@ -16,17 +16,17 @@ use crate::serialization::{serialize, take_slice, tokenize};
 use crate::shuffle::deterministic_index_shuffling;
 use crate::traits::Hash;
 use smt::index::TreeIndex;
-use smt::node_template::HashNodeSMT;
+use smt::node_template::HashNodeSmt;
 use smt::traits::Serializable;
 use smt::utils::set_pos_best;
 use smt::{node_template, proof::MerkleProof, traits::InclusionProvable, tree::SparseMerkleTree};
 use std::marker::PhantomData;
 
-type SMT<P> = SparseMerkleTree<P>;
+type Smt<P> = SparseMerkleTree<P>;
 
-pub(crate) type PLRPaddingSize = U32;
+pub(crate) type PlrPaddingSize = U32;
 pub(crate) type ChainNodesSize = U32;
-pub(crate) type MDPSaltSize = U16;
+pub(crate) type MdpSaltSize = U16;
 
 pub struct Commitment<D: Hash> {
     base: u32,
@@ -49,7 +49,7 @@ impl<D: Hash> Secret<D> {
         }
     }
 
-    pub fn commit(&self, base: u32, max_number_bits: usize) -> Result<Commitment<D>, HWError> {
+    pub fn commit(&self, base: u32, max_number_bits: usize) -> Result<Commitment<D>, HwError> {
         let mdp_smt_height = compute_mdp_height(base, max_number_bits);
         let commitment = commit_gen::<D>(
             &self.value,
@@ -70,7 +70,7 @@ impl<D: Hash> Secret<D> {
         base: u32,
         max_number_bits: usize,
         threshold: &BigUint,
-    ) -> Result<Proof, HWError> {
+    ) -> Result<Proof, HwError> {
         let mdp_smt_height = compute_mdp_height(base, max_number_bits);
         let result = bigger_than_proof_gen::<D>(
             threshold,
@@ -90,7 +90,7 @@ impl<D: Hash> Secret<D> {
 }
 
 impl<D: Hash> Commitment<D> {
-    pub fn verify(&self, proof: &Proof, threshold: &BigUint) -> Result<(), HWError> {
+    pub fn verify(&self, proof: &Proof, threshold: &BigUint) -> Result<(), HwError> {
         let result = proof_verify::<D>(
             threshold,
             self.base,
@@ -102,7 +102,7 @@ impl<D: Hash> Commitment<D> {
         );
         match result? {
             true => Ok(()),
-            false => Err(HWError::ProofVerificationError),
+            false => Err(HwError::ProofVerificationError),
         }
     }
 
@@ -120,9 +120,9 @@ impl<D: Hash> Commitment<D> {
 }
 
 pub struct Proof {
-    plr_padding: Option<GenericArray<u8, PLRPaddingSize>>,
+    plr_padding: Option<GenericArray<u8, PlrPaddingSize>>,
     chain_nodes: Vec<GenericArray<u8, ChainNodesSize>>,
-    mdp_salt: GenericArray<u8, MDPSaltSize>,
+    mdp_salt: GenericArray<u8, MdpSaltSize>,
     smt_inclusion_proof: Vec<u8>,
 }
 
@@ -145,16 +145,16 @@ impl Proof {
         result
     }
 
-    pub fn deserialize(input: &[u8]) -> Result<Self, HWError> {
+    pub fn deserialize(input: &[u8]) -> Result<Self, HwError> {
         let (chain_nodes_flattened, remainder) = tokenize(&input, 2)?;
-        let (mdp_salt, remainder) = take_slice(&remainder, MDPSaltSize::to_usize())?;
+        let (mdp_salt, remainder) = take_slice(&remainder, MdpSaltSize::to_usize())?;
         let (smt_inclusion_proof, remainder) = tokenize(&remainder, 2)?;
         let plr_padding = match remainder.is_empty() {
             true => None,
             false => {
-                let (padding, remainder) = take_slice(&remainder, PLRPaddingSize::to_usize())?;
+                let (padding, remainder) = take_slice(&remainder, PlrPaddingSize::to_usize())?;
                 if !remainder.is_empty() {
-                    return Err(HWError::SerializationError);
+                    return Err(HwError::SerializationError);
                 }
                 Some(GenericArray::clone_from_slice(&padding))
             }
@@ -169,7 +169,7 @@ impl Proof {
             cn_index += ChainNodesSize::to_usize();
         }
         if cn_index != chain_nodes_flattened.len() {
-            return Err(HWError::SerializationError);
+            return Err(HwError::SerializationError);
         }
 
         Ok(Self {
@@ -192,12 +192,12 @@ pub fn bigger_than_proof_gen<D: Hash>(
 ) -> Result<
     (
         Vec<u8>,
-        Option<GenericArray<u8, PLRPaddingSize>>,
+        Option<GenericArray<u8, PlrPaddingSize>>,
         Vec<GenericArray<u8, ChainNodesSize>>,
-        GenericArray<u8, MDPSaltSize>,
+        GenericArray<u8, MdpSaltSize>,
         Vec<u8>,
     ),
-    HWError,
+    HwError,
 > {
     // Step 0: compute base's bitlength
     let bitlength = compute_bitlength(base);
@@ -231,7 +231,7 @@ pub fn bigger_than_proof_gen<D: Hash>(
     );
 
     // Step 6: compute top salts
-    let salts = generate_subseeds::<D, MDPSaltSize>(TOP_SALT, seed, plr_roots.len());
+    let salts = generate_subseeds::<D, MdpSaltSize>(TOP_SALT, seed, plr_roots.len());
 
     // Step 7: KDF smt roots
     let top_salted_roots: Vec<[u8; 32]> = plr_roots
@@ -244,7 +244,7 @@ pub fn bigger_than_proof_gen<D: Hash>(
     let shuffled_indexes = deterministic_index_shuffling(
         top_salted_roots.len(),
         max_number_bits / bitlength,
-        <[u8; 32]>::try_from(seed).map_err(|_| HWError::SeedLengthError)?,
+        <[u8; 32]>::try_from(seed).map_err(|_| HwError::SeedLengthError)?,
     );
 
     // Step 9: Compute final root (HW commitment)
@@ -271,11 +271,11 @@ pub fn proof_verify<D: Hash>(
     proving_value: &BigUint,
     base: u32,
     commitment: &[u8],
-    plr_padding: &Option<GenericArray<u8, PLRPaddingSize>>,
+    plr_padding: &Option<GenericArray<u8, PlrPaddingSize>>,
     chain_nodes: &[GenericArray<u8, ChainNodesSize>],
-    mdp_salt: &GenericArray<u8, MDPSaltSize>,
+    mdp_salt: &GenericArray<u8, MdpSaltSize>,
     smt_inclusion_proof: &[u8],
-) -> Result<bool, HWError> {
+) -> Result<bool, HwError> {
     let bitlength = compute_bitlength(base);
     let requested_value_split = value_split_per_base(proving_value, bitlength);
     let mdp_chain_nodes: Vec<[u8; 32]> = chain_nodes
@@ -305,11 +305,11 @@ pub fn proof_verify<D: Hash>(
     let salted_mdp_root = salted_hash::<D>(mdp_salt, &mdp_root);
 
     // Decode the Merkle proof.
-    let deserialized_proof = MerkleProof::<HashNodeSMT<D>>::deserialize(&smt_inclusion_proof)
-        .map_err(|_| HWError::MerkleProofDecodingError)?;
+    let deserialized_proof = MerkleProof::<HashNodeSmt<D>>::deserialize(&smt_inclusion_proof)
+        .map_err(|_| HwError::MerkleProofDecodingError)?;
 
-    let commitment_node = HashNodeSMT::<D>::new(commitment.to_owned());
-    let smt_mdp_node = HashNodeSMT::<D>::new(salted_mdp_root.to_vec());
+    let commitment_node = HashNodeSmt::<D>::new(commitment.to_owned());
+    let smt_mdp_node = HashNodeSmt::<D>::new(salted_mdp_root.to_vec());
 
     Ok(deserialized_proof.verify_inclusion_proof(&[smt_mdp_node], &commitment_node))
 }
@@ -320,7 +320,7 @@ pub fn commit_gen<D: Hash>(
     seed: &[u8],
     max_number_bits: usize,
     mdp_smt_height: usize,
-) -> Result<Vec<u8>, HWError> {
+) -> Result<Vec<u8>, HwError> {
     // Step 0: compute base's bitlength
     let bitlength = compute_bitlength(base);
 
@@ -341,7 +341,7 @@ pub fn commit_gen<D: Hash>(
     let plr_roots = plr_roots::<D>(seed, &wires, max_number_bits / bitlength);
 
     // Step 6: compute top salts
-    let salts = generate_subseeds::<D, MDPSaltSize>(TOP_SALT, seed, plr_roots.len());
+    let salts = generate_subseeds::<D, MdpSaltSize>(TOP_SALT, seed, plr_roots.len());
 
     // Step 7: KDF smt roots
     let top_salted_roots: Vec<[u8; 32]> = plr_roots
@@ -354,7 +354,7 @@ pub fn commit_gen<D: Hash>(
     let shuffled_indexes = deterministic_index_shuffling(
         top_salted_roots.len(),
         max_number_bits / bitlength,
-        <[u8; 32]>::try_from(seed).map_err(|_| HWError::SeedLengthError)?,
+        <[u8; 32]>::try_from(seed).map_err(|_| HwError::SeedLengthError)?,
     );
 
     // Step 9: Compute final root (HW commitment)
@@ -388,13 +388,13 @@ fn proving_value_chain_nodes(
 
 /// find the mdp index where proving_value <= mdp[i]
 /// TODO: use binary search
-fn pick_mdp_index(proving_value: &BigUint, mdp: &[BigUint]) -> Result<usize, HWError> {
+fn pick_mdp_index(proving_value: &BigUint, mdp: &[BigUint]) -> Result<usize, HwError> {
     for i in (0..mdp.len()).rev() {
         if proving_value <= &mdp[i] {
             return Ok(i);
         }
     }
-    Err(HWError::MDPError)
+    Err(HwError::MdpError)
 }
 
 /// Compute base's bitlength.
@@ -413,19 +413,19 @@ fn final_smt_root<D: Hash>(
     shuffled_indexes: &[usize],
     tree_height: usize,
 ) -> Vec<u8> {
-    let mut smt_leaves: Vec<(TreeIndex, node_template::HashNodeSMT<D>)> = top_salted_roots
+    let mut smt_leaves: Vec<(TreeIndex, node_template::HashNodeSmt<D>)> = top_salted_roots
         .iter()
         .enumerate()
         .map(|(i, s)| {
             (
                 set_pos_best(tree_height, shuffled_indexes[i] as u32),
-                node_template::HashNodeSMT::<D>::new(s.to_vec()),
+                node_template::HashNodeSmt::<D>::new(s.to_vec()),
             )
         })
         .collect();
 
     smt_leaves.sort_by(|(t1, _), (t2, _)| t1.cmp(t2));
-    let mut tree: SMT<node_template::HashNodeSMT<D>> = SMT::new(tree_height);
+    let mut tree: Smt<node_template::HashNodeSmt<D>> = Smt::new(tree_height);
     tree.build(&smt_leaves);
     tree.get_root_raw().serialize()
 }
@@ -435,14 +435,14 @@ fn final_smt_root_and_proof<D: Hash>(
     shuffled_indexes: &[usize],
     tree_height: usize,
     leaf_index: usize,
-) -> Result<(Vec<u8>, Vec<u8>), HWError> {
-    let mut smt_leaves: Vec<(TreeIndex, node_template::HashNodeSMT<D>)> = top_salted_roots
+) -> Result<(Vec<u8>, Vec<u8>), HwError> {
+    let mut smt_leaves: Vec<(TreeIndex, node_template::HashNodeSmt<D>)> = top_salted_roots
         .iter()
         .enumerate()
         .map(|(i, s)| {
             (
                 set_pos_best(tree_height, shuffled_indexes[i] as u32),
-                node_template::HashNodeSMT::<D>::new(s.to_vec()),
+                node_template::HashNodeSmt::<D>::new(s.to_vec()),
             )
         })
         .collect();
@@ -450,12 +450,12 @@ fn final_smt_root_and_proof<D: Hash>(
     let node = smt_leaves[leaf_index].0;
 
     smt_leaves.sort_by(|(t1, _), (t2, _)| t1.cmp(t2));
-    let mut tree: SMT<node_template::HashNodeSMT<D>> = SMT::new(tree_height);
+    let mut tree: Smt<node_template::HashNodeSmt<D>> = Smt::new(tree_height);
     tree.build(&smt_leaves);
 
     let inclusion_proof =
-        MerkleProof::<node_template::HashNodeSMT<D>>::generate_inclusion_proof(&tree, &[node])
-            .ok_or(HWError::InclusionProofError)?;
+        MerkleProof::<node_template::HashNodeSmt<D>>::generate_inclusion_proof(&tree, &[node])
+            .ok_or(HwError::InclusionProofError)?;
     let smt_proof = inclusion_proof.serialize();
 
     Ok((tree.get_root_raw().serialize(), smt_proof))
@@ -475,12 +475,12 @@ fn plr_roots_and_proof<D: Hash>(
     mdp_index: usize,
     proving_value_split_size: usize,
 ) -> (
-    Vec<GenericArray<u8, PLRPaddingSize>>,
-    Option<GenericArray<u8, PLRPaddingSize>>,
+    Vec<GenericArray<u8, PlrPaddingSize>>,
+    Option<GenericArray<u8, PlrPaddingSize>>,
 ) {
     let plr: Vec<(
-        GenericArray<u8, PLRPaddingSize>,
-        Option<GenericArray<u8, PLRPaddingSize>>,
+        GenericArray<u8, PlrPaddingSize>,
+        Option<GenericArray<u8, PlrPaddingSize>>,
     )> = wires
         .iter()
         .map(|v| plr_accumulator::<D>(seed, v, max_length, proving_value_split_size))
@@ -493,7 +493,7 @@ fn plr_roots<D: Hash>(
     seed: &[u8],
     wires: &[Vec<[u8; 32]>],
     max_length: usize,
-) -> Vec<GenericArray<u8, PLRPaddingSize>> {
+) -> Vec<GenericArray<u8, PlrPaddingSize>> {
     wires
         .iter()
         .map(|v| plr_accumulator::<D>(seed, v, max_length, v.len()).0)
@@ -544,7 +544,7 @@ mod tests {
         max_number_bits: usize,
         value_str: &str,
         threshold_str: &str,
-    ) -> Result<(), HWError> {
+    ) -> Result<(), HwError> {
         let value = BigUint::from_str_radix(value_str, base).unwrap();
         let threshold = BigUint::from_str_radix(threshold_str, base).unwrap();
 
@@ -565,19 +565,19 @@ mod tests {
     }
 
     #[test]
-    fn test_proof_success() -> Result<(), HWError> {
+    fn test_proof_success() -> Result<(), HwError> {
         assert_eq!(true, prove_and_verify(4, 32, "212", "201").is_ok(),);
         Ok(())
     }
 
     #[test]
-    fn test_proof_failure() -> Result<(), HWError> {
+    fn test_proof_failure() -> Result<(), HwError> {
         assert_eq!(false, prove_and_verify(4, 32, "201", "212").is_ok(),);
         Ok(())
     }
 
     #[test]
-    fn test_hashwires_inner_functions() -> Result<(), HWError> {
+    fn test_hashwires_inner_functions() -> Result<(), HwError> {
         let max_number_bits = 32;
         let base = 4;
         let mdp_tree_height = 4;
@@ -643,21 +643,21 @@ mod tests {
     }
 
     #[test]
-    fn test_smt() -> Result<(), HWError> {
+    fn test_smt() -> Result<(), HwError> {
         let tree_height = 4;
-        let mut tree: SMT<node_template::HashNodeSMT<Blake3>> = SMT::new(tree_height);
+        let mut tree: Smt<node_template::HashNodeSmt<Blake3>> = Smt::new(tree_height);
         let mut v = vec![];
         let a = (
             set_pos_best(tree_height, 0),
-            node_template::HashNodeSMT::<Blake3>::new(vec![1; 32]),
+            node_template::HashNodeSmt::<Blake3>::new(vec![1; 32]),
         );
         let b = (
             set_pos_best(tree_height, 1),
-            node_template::HashNodeSMT::<Blake3>::new(vec![2; 32]),
+            node_template::HashNodeSmt::<Blake3>::new(vec![2; 32]),
         );
         let c = (
             set_pos_best(tree_height, 15),
-            node_template::HashNodeSMT::<Blake3>::new(vec![3; 32]),
+            node_template::HashNodeSmt::<Blake3>::new(vec![3; 32]),
         );
         v.push(a);
         v.push(b);
@@ -670,7 +670,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pick_mdp_index() -> Result<(), HWError> {
+    fn test_pick_mdp_index() -> Result<(), HwError> {
         let mdp = vec![
             BigUint::from(3143u16),
             BigUint::from(3139u16),
