@@ -1,4 +1,4 @@
-use crate::errors::HWError;
+use crate::errors::HwError;
 use rand::SeedableRng;
 use rand::{Rng, RngCore};
 use rand_chacha::ChaCha12Rng;
@@ -17,7 +17,7 @@ pub trait Shuffler<T> {
         data: &mut Vec<T>,
         shuffle_len: usize,
         rng: &mut R,
-    ) -> Result<(), HWError>
+    ) -> Result<(), HwError>
     where
         T: Clone,
         R: RngCore + ?Sized;
@@ -30,14 +30,14 @@ impl<T> Shuffler<T> for Durstenfeld {
         data: &mut Vec<T>,
         shuffle_len: usize,
         rng: &mut R,
-    ) -> Result<(), HWError>
+    ) -> Result<(), HwError>
     where
         T: Clone,
         R: RngCore + ?Sized,
     {
         let dlen = data.len();
         if dlen < shuffle_len {
-            return Err(HWError::ShuffleError);
+            return Err(HwError::ShuffleError);
         }
 
         for i in 0..shuffle_len {
@@ -54,7 +54,7 @@ pub fn deterministic_index_shuffling(
     indexes_required: usize,
     max_num: usize,
     seed: [u8; 32],
-) -> Result<Vec<usize>, HWError> {
+) -> Result<Vec<usize>, HwError> {
     let mut input = (0..max_num).collect();
     let mut rng = ChaCha12Rng::from_seed(seed);
     let mut durstenfeld = Durstenfeld::default();

@@ -31,7 +31,7 @@ fn test_index_exceed_max_height() {
 #[test]
 #[should_panic]
 fn test_tree_exceed_max_height() {
-    let _tree: SMT<node_template::SumNodeSMT> = SMT::new(MAX_HEIGHT + 1);
+    let _tree: SMT<node_template::SumNodeSmt> = SMT::new(MAX_HEIGHT + 1);
 }
 
 #[test]
@@ -39,16 +39,16 @@ fn test_padding_provable() {
     let mut idx = TreeIndex::zero(256);
     for _i in 0..1000 {
         idx.randomize();
-        let sum = node_template::SumNodeSMT::padding(&idx);
-        assert!(node_template::SumNodeSMT::verify_padding_node(
+        let sum = node_template::SumNodeSmt::padding(&idx);
+        assert!(node_template::SumNodeSmt::verify_padding_node(
             &sum.get_proof_node(),
             &sum.prove_padding_node(&idx),
             &idx
         ));
 
-        let node = node_template::HashNodeSMT::<blake3::Hasher>::padding(&idx);
+        let node = node_template::HashNodeSmt::<blake3::Hasher>::padding(&idx);
         assert!(
-            node_template::HashNodeSMT::<blake3::Hasher>::verify_padding_node(
+            node_template::HashNodeSmt::<blake3::Hasher>::verify_padding_node(
                 &node.get_proof_node(),
                 &node.prove_padding_node(&idx),
                 &idx
@@ -236,9 +236,9 @@ where
 
 #[test]
 fn test_smt() {
-    Tester::<node_template::SumNodeSMT>::test();
-    Tester::<node_template::HashNodeSMT<blake3::Hasher>>::test();
-    Tester::<node_template::HashNodeSMT<blake2::Blake2b>>::test();
-    Tester::<node_template::HashNodeSMT<sha2::Sha256>>::test();
-    Tester::<node_template::HashNodeSMT<sha3::Sha3_256>>::test();
+    Tester::<node_template::SumNodeSmt>::test();
+    Tester::<node_template::HashNodeSmt<blake3::Hasher>>::test();
+    Tester::<node_template::HashNodeSmt<blake2::Blake2b>>::test();
+    Tester::<node_template::HashNodeSmt<sha2::Sha256>>::test();
+    Tester::<node_template::HashNodeSmt<sha3::Sha3_256>>::test();
 }
