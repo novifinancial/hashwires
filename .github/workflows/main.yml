@@ -28,7 +28,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path rust/hashwires/Cargo.toml
+          args: --manifest-path Cargo.toml
 
   benches:
     name: cargo bench compilation
@@ -48,7 +48,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: bench
-          args: --no-run --manifest-path rust/hashwires/Cargo.toml
+          args: --no-run --manifest-path Cargo.toml
 
   clippy:
     name: cargo clippy
@@ -69,7 +69,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --manifest-path rust/hashwires/Cargo.toml -- -D warnings
+          args: --manifest-path Cargo.toml -- -D warnings
 
 
   format:
@@ -91,4 +91,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all --manifest-path rust/hashwires/Cargo.toml -- --check
+          args: --all --manifest-path Cargo.toml -- --check
