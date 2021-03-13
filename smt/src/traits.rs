@@ -5,6 +5,7 @@
 //! see the implementations of the [example](../example/index.html) module.
 
 use crate::{error::DecodingError, index::TreeIndex};
+use crate::pad_secret::Secret;
 
 /// Trait for merging two child nodes to extract the parent node in the SMT.
 pub trait Mergeable {
@@ -16,7 +17,7 @@ pub trait Mergeable {
 pub trait Paddable {
     /// When the tree node of the input index doesn't exist,
     /// we need to construct a padding node at that position.
-    fn padding(idx: &TreeIndex) -> Self;
+    fn padding(idx: &TreeIndex, secret: &Secret) -> Self;
 }
 
 /// Trait for getting the type name of tree nodes in the SMT.

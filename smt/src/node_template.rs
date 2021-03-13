@@ -11,6 +11,7 @@ use crate::{
     },
     utils::{bytes_to_usize, usize_to_bytes},
 };
+use crate::pad_secret::Secret;
 
 const SECRET: &str = "secret";
 pub const PADDING_STRING: &str = "padding_node";
@@ -49,9 +50,9 @@ impl<D: Digest> Mergeable for HashNodeSmt<D> {
 }
 
 impl<D: Digest> Paddable for HashNodeSmt<D> {
-    fn padding(idx: &TreeIndex) -> HashNodeSmt<D> {
+    fn padding(idx: &TreeIndex, secret: &Secret) -> HashNodeSmt<D> {
         let mut pre_image = D::new();
-        pre_image.update(SECRET.as_bytes());
+        pre_image.update(secret.as_bytes());
         pre_image.update(&TreeIndex::serialize(&[*idx]));
 
         let mut hasher = D::new();
@@ -171,7 +172,7 @@ impl Mergeable for SumNodeSmt {
 }
 
 impl Paddable for SumNodeSmt {
-    fn padding(_idx: &TreeIndex) -> SumNodeSmt {
+    fn padding(_idx: &TreeIndex, _secret: &Secret) -> SumNodeSmt {
         SumNodeSmt(0u64)
     }
 }

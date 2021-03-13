@@ -9,6 +9,7 @@ use crate::{
     traits::{Mergeable, Paddable, ProofExtractable, Rand, Serializable},
     tree::{NodeType, SparseMerkleTree},
 };
+use crate::pad_secret::Secret;
 
 const BYTE_SIZE: usize = 8;
 const BYTE_NUM: usize = MAX_HEIGHT / BYTE_SIZE;
@@ -31,7 +32,7 @@ impl Mergeable for Nil {
 }
 
 impl Paddable for Nil {
-    fn padding(_idx: &TreeIndex) -> Nil {
+    fn padding(_idx: &TreeIndex, _secret: &Secret) -> Nil {
         Nil
     }
 }

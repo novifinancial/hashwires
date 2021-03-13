@@ -7,6 +7,7 @@ pub mod proof;
 pub mod traits;
 pub mod tree;
 pub mod utils;
+pub mod pad_secret;
 
 #[cfg(test)]
 mod tests;
