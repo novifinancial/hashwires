@@ -53,6 +53,8 @@ pub enum TreeError {
     IndexNotSorted,
     /// Error when there are duplicated indexes in the list.
     IndexDuplicated,
+    /// Errors related to SMTree Secret.
+    SecretError,
 }
 
 impl core::fmt::Display for TreeError {
@@ -69,6 +71,9 @@ impl core::fmt::Display for TreeError {
             }
             TreeError::IndexDuplicated => {
                 write!(f, "There are duplicated indexes")?;
+            }
+            TreeError::SecretError => {
+                write!(f, "Wrong Secret size")?;
             }
         }
         Ok(())

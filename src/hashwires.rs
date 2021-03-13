@@ -10,13 +10,15 @@ use num_bigint::BigUint;
 use crate::dp::{find_mdp, value_split_per_base};
 use crate::errors::HwError;
 use crate::hashes::{
-    compute_hash_chains, generate_subseeds, hash_chain, plr_accumulator, salted_hash, TOP_SALT,
+    compute_hash_chains, generate_subseeds, hash_chain, plr_accumulator, salted_hash,
+    SMTREE_PADDING_SALT, TOP_SALT,
 };
 use crate::serialization::{serialize, take_slice, tokenize};
 use crate::shuffle::deterministic_index_shuffling;
 use crate::traits::Hash;
 use smt::index::TreeIndex;
 use smt::node_template::HashNodeSmt;
+use smt::pad_secret::Secret as SmtSecret;
 use smt::traits::Serializable;
 use smt::utils::set_pos_best;
 use smt::{node_template, proof::MerkleProof, traits::InclusionProvable, tree::SparseMerkleTree};
@@ -27,6 +29,7 @@ type Smt<P> = SparseMerkleTree<P>;
 pub(crate) type PlrPaddingSize = U32;
 pub(crate) type ChainNodesSize = U32;
 pub(crate) type MdpSaltSize = U16;
+pub(crate) type SmtSecretSize = U32;
 
 pub struct Commitment<D: Hash> {
     base: u32,
@@ -248,11 +251,13 @@ pub fn bigger_than_proof_gen<D: Hash>(
     );
 
     // Step 9: Compute final root (HW commitment)
+    let smt_secret = generate_subseeds::<D, SmtSecretSize>(SMTREE_PADDING_SALT, seed, 1);
     let hw_commitment = final_smt_root_and_proof::<D>(
         &top_salted_roots,
         &shuffled_indexes?,
         mdp_smt_height,
         mdp_index,
+        &SmtSecret::from_bytes(&smt_secret[0]).unwrap(),
     )?;
 
     // Step C: pick hashchain nodes for the proving value
@@ -358,7 +363,13 @@ pub fn commit_gen<D: Hash>(
     );
 
     // Step 9: Compute final root (HW commitment)
-    let hw_commitment = final_smt_root::<D>(&top_salted_roots, &shuffled_indexes?, mdp_smt_height);
+    let smt_secret = generate_subseeds::<D, SmtSecretSize>(SMTREE_PADDING_SALT, seed, 1);
+    let hw_commitment = final_smt_root::<D>(
+        &top_salted_roots,
+        &shuffled_indexes?,
+        mdp_smt_height,
+        &SmtSecret::from_bytes(&smt_secret[0]).unwrap(),
+    );
     Ok(hw_commitment)
 }
 
@@ -412,6 +423,7 @@ fn final_smt_root<D: Hash>(
     top_salted_roots: &[[u8; 32]],
     shuffled_indexes: &[usize],
     tree_height: usize,
+    smt_secret: &SmtSecret,
 ) -> Vec<u8> {
     let mut smt_leaves: Vec<(TreeIndex, node_template::HashNodeSmt<D>)> = top_salted_roots
         .iter()
@@ -426,7 +438,7 @@ fn final_smt_root<D: Hash>(
 
     smt_leaves.sort_by(|(t1, _), (t2, _)| t1.cmp(t2));
     let mut tree: Smt<node_template::HashNodeSmt<D>> = Smt::new(tree_height);
-    tree.build(&smt_leaves);
+    tree.build(&smt_leaves, smt_secret);
     tree.get_root_raw().serialize()
 }
 
@@ -435,6 +447,7 @@ fn final_smt_root_and_proof<D: Hash>(
     shuffled_indexes: &[usize],
     tree_height: usize,
     leaf_index: usize,
+    smt_secret: &SmtSecret,
 ) -> Result<(Vec<u8>, Vec<u8>), HwError> {
     let mut smt_leaves: Vec<(TreeIndex, node_template::HashNodeSmt<D>)> = top_salted_roots
         .iter()
@@ -451,7 +464,7 @@ fn final_smt_root_and_proof<D: Hash>(
 
     smt_leaves.sort_by(|(t1, _), (t2, _)| t1.cmp(t2));
     let mut tree: Smt<node_template::HashNodeSmt<D>> = Smt::new(tree_height);
-    tree.build(&smt_leaves);
+    tree.build(&smt_leaves, smt_secret);
 
     let inclusion_proof =
         MerkleProof::<node_template::HashNodeSmt<D>>::generate_inclusion_proof(&tree, &[node])
@@ -594,7 +607,7 @@ mod tests {
         )?;
         assert_eq!(
             hex::encode(&hw_commit_and_proof.0),
-            "b3cbed18644291b4cc300c265609432dc9797d29e4123bd0bf763c9299cbdc6f"
+            "c792382b1e110338b7574cc16caecacbc54d20d0b205f34464c6c83de592beef"
         );
         assert!(proof_verify::<Blake3>(
             &threshold,
@@ -614,7 +627,7 @@ mod tests {
         let hw_commit = commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height)?;
         assert_eq!(
             hex::encode(hw_commit),
-            "1c9faca8f6159f8e5041bebd823de9e3c252f25a8071543ee6c3a4c1c974d411"
+            "09bde6e6432f0b5ff0ff99e6d24cb7901bd6b0dad41959ed289e496e22fbc67f"
         );
 
         let max_digits = 64;
@@ -636,7 +649,7 @@ mod tests {
         let hw_commit = commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height)?;
         assert_eq!(
             hex::encode(hw_commit),
-            "84dd666be754f4bbe7a344d8b6dc8f0fa3c708dd5dbd45904301b84ba2ec37ff"
+            "15ae00e3ee932dbe70bc553b6dced17e81d6825fb83f9747a8c16f92098eae19"
         );
 
         Ok(())
@@ -662,7 +675,7 @@ mod tests {
         v.push(a);
         v.push(b);
         v.push(c);
-        tree.build(&v);
+        tree.build(&v, &SmtSecret::all_zeros_secret());
         println!("{}", tree.get_leaves().len());
         print_output(&tree);
 

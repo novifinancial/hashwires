@@ -6,6 +6,7 @@ use generic_array::{typenum::Unsigned, ArrayLength, GenericArray};
 pub const LEAF_SALT: &[u8; 32] = b"01234567890123456789012345678901";
 pub const TOP_SALT: &[u8; 32] = b"11234567890123456789012345678901";
 pub const PADDING_SALT: &[u8; 32] = b"21234567890123456789012345678901";
+pub const SMTREE_PADDING_SALT: &[u8; 32] = b"31234567890123456789012345678901";
 
 /// Output padding node + PLR accumulator
 #[inline]

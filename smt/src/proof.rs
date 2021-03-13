@@ -13,6 +13,7 @@ use crate::{
     tree::{ChildDir, NodeType, SparseMerkleTree},
     utils::{bytes_to_usize, usize_to_bytes, Nil},
 };
+use crate::pad_secret::Secret;
 
 // The number of bytes for encoding the batch num in a Merkle proof.
 const BATCH_NUM_BYTE_NUM: usize = 8;
@@ -155,7 +156,7 @@ where
         for index in &self.indexes {
             list_for_building.push((*index, Nil));
         }
-        if let Some(_x) = proof_tree.construct_smt_nodes(&list_for_building) {
+        if let Some(_x) = proof_tree.construct_smt_nodes(&list_for_building, &Secret::all_zeros_secret()) {
             return false;
         }
 
