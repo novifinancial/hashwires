@@ -4,8 +4,8 @@
 //! For examples on how to use these traits,
 //! see the implementations of the [example](../example/index.html) module.
 
-use crate::{error::DecodingError, index::TreeIndex};
 use crate::pad_secret::Secret;
+use crate::{error::DecodingError, index::TreeIndex};
 
 /// Trait for merging two child nodes to extract the parent node in the SMT.
 pub trait Mergeable {
@@ -49,7 +49,7 @@ pub trait PaddingProvable {
     type PaddingProof;
 
     /// Generate the proof for padding node at given tree index.
-    fn prove_padding_node(&self, idx: &TreeIndex) -> Self::PaddingProof;
+    fn prove_padding_node(&self, idx: &TreeIndex, secret: &Secret) -> Self::PaddingProof;
 
     /// Verify the proof for a padding node at given tree index with associated node data in the Merkle proof.
     ///
@@ -143,7 +143,7 @@ pub trait RandomSampleable {
     /// Otherwise, find the closest real leaf nodes left to and right to the input index respectively.
     /// Return the inclusion proof of the closest nodes if exist,
     /// together with proofs of necessary padding nodes showing that the leaf nodes are the closest.
-    fn random_sampling(tree: &Self::TreeStruct, idx: &TreeIndex) -> Self;
+    fn random_sampling(tree: &Self::TreeStruct, idx: &TreeIndex, secret: &Secret) -> Self;
 
     /// Verify the random sampling proof.
     fn verify_random_sampling_proof(&self, root: &Self::ProofNodeType) -> bool;

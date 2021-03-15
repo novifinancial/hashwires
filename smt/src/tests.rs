@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use crate::{
     index::{TreeIndex, MAX_HEIGHT},
     node_template,
+    pad_secret::Secret,
     proof::{MerkleProof, RandomSamplingProof},
     traits::{
         InclusionProvable, Mergeable, Paddable, PaddingProvable, ProofExtractable, Rand,
@@ -37,20 +38,21 @@ fn test_tree_exceed_max_height() {
 #[test]
 fn test_padding_provable() {
     let mut idx = TreeIndex::zero(256);
+    let secret = Secret::all_zeros_secret();
     for _i in 0..1000 {
         idx.randomize();
         let sum = node_template::SumNodeSmt::padding(&idx);
         assert!(node_template::SumNodeSmt::verify_padding_node(
             &sum.get_proof_node(),
-            &sum.prove_padding_node(&idx),
+            &sum.prove_padding_node(&idx, &secret),
             &idx
         ));
 
-        let node = node_template::HashNodeSmt::<blake3::Hasher>::padding(&idx);
+        let node = node_template::HashWiresNodeSmt::<blake3::Hasher>::padding(&idx);
         assert!(
-            node_template::HashNodeSmt::<blake3::Hasher>::verify_padding_node(
+            node_template::HashWiresNodeSmt::<blake3::Hasher>::verify_padding_node(
                 &node.get_proof_node(),
-                &node.prove_padding_node(&idx),
+                &node.prove_padding_node(&idx, &secret),
                 &idx
             )
         );
@@ -237,8 +239,8 @@ where
 #[test]
 fn test_smt() {
     Tester::<node_template::SumNodeSmt>::test();
-    Tester::<node_template::HashNodeSmt<blake3::Hasher>>::test();
-    Tester::<node_template::HashNodeSmt<blake2::Blake2b>>::test();
-    Tester::<node_template::HashNodeSmt<sha2::Sha256>>::test();
-    Tester::<node_template::HashNodeSmt<sha3::Sha3_256>>::test();
+    Tester::<node_template::HashWiresNodeSmt<blake3::Hasher>>::test();
+    Tester::<node_template::HashWiresNodeSmt<blake2::Blake2b>>::test();
+    Tester::<node_template::HashWiresNodeSmt<sha2::Sha256>>::test();
+    Tester::<node_template::HashWiresNodeSmt<sha3::Sha3_256>>::test();
 }

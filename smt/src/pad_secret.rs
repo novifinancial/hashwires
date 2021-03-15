@@ -95,8 +95,8 @@ impl Secret {
     ///
     /// A CSPRNG with a `fill_bytes()` method, e.g. `rand::OsRng`
     pub fn generate<T>(csprng: &mut T) -> Secret
-        where
-            T: CryptoRng + RngCore,
+    where
+        T: CryptoRng + RngCore,
     {
         let mut sk: Secret = Secret([0u8; 32]);
         csprng.fill_bytes(&mut sk.0);
@@ -107,4 +107,4 @@ impl Secret {
     pub fn all_zeros_secret() -> Secret {
         Secret([0u8; 32])
     }
- }
+}

@@ -3,13 +3,13 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 use std::mem;
 
+use crate::pad_secret::Secret;
 use crate::{
     error::DecodingError,
     index::{TreeIndex, MAX_HEIGHT},
     traits::{Mergeable, Paddable, ProofExtractable, Rand, Serializable},
     tree::{NodeType, SparseMerkleTree},
 };
-use crate::pad_secret::Secret;
 
 const BYTE_SIZE: usize = 8;
 const BYTE_NUM: usize = MAX_HEIGHT / BYTE_SIZE;

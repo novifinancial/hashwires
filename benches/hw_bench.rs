@@ -3,8 +3,8 @@ use num_bigint::BigUint;
 use num_traits::Num;
 use rand_core::{OsRng, RngCore};
 
+use blake3::Hasher as Blake3;
 use hashwires::hashwires::Secret;
-use sha2::Sha256;
 
 pub fn hw_commitment_gen_base4(c: &mut Criterion) {
     let max_number_bits = 32;
@@ -14,7 +14,7 @@ pub fn hw_commitment_gen_base4(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     c.bench_function("hw_commitment_gen_base4", |bench| {
         bench.iter(|| secret.commit(base, max_number_bits))
@@ -29,7 +29,7 @@ pub fn hw_commitment_gen_base4_max(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     c.bench_function("hw_commitment_gen_base4_max", |bench| {
         bench.iter(|| secret.commit(base, max_number_bits))
@@ -44,7 +44,7 @@ pub fn hw_commitment_gen_base16(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     c.bench_function("hw_commitment_gen_base16", |bench| {
         bench.iter(|| secret.commit(base, max_number_bits))
@@ -59,7 +59,7 @@ pub fn hw_commitment_gen_base16_max(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     c.bench_function("hw_commitment_gen_base16_max", |bench| {
         bench.iter(|| secret.commit(base, max_number_bits))
@@ -74,7 +74,7 @@ pub fn hw_commitment_gen_base256_max(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     c.bench_function("hw_commitment_gen_base256_max", |bench| {
         bench.iter(|| secret.commit(base, max_number_bits))
@@ -89,7 +89,7 @@ pub fn hw_commitment_gen_base256_minimum_value(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     c.bench_function("hw_commitment_gen_base256_minimum_value", |bench| {
         bench.iter(|| secret.commit(base, max_number_bits))
@@ -104,7 +104,7 @@ pub fn hw_commitment_gen_base256_1million(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     c.bench_function("hw_commitment_gen_base256_1million", |bench| {
         bench.iter(|| secret.commit(base, max_number_bits))
@@ -119,7 +119,7 @@ pub fn hw_proof_gen_base4(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("201", 4).unwrap();
 
@@ -136,7 +136,7 @@ pub fn hw_proof_gen_base4_max(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("18446744073709551613", 10).unwrap();
 
@@ -153,7 +153,7 @@ pub fn hw_proof_gen_base16(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("CB", 16).unwrap();
 
@@ -170,7 +170,7 @@ pub fn hw_proof_gen_base16_max(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("18446744073709551613", 10).unwrap();
 
@@ -187,7 +187,7 @@ pub fn hw_proof_gen_base256_max(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("18446744073709551613", 10).unwrap();
 
@@ -204,7 +204,7 @@ pub fn hw_proof_gen_base256_minimum_value(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("1", 10).unwrap();
 
@@ -221,7 +221,7 @@ pub fn hw_proof_gen_base256_1million(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("500000", 10).unwrap();
 
@@ -238,7 +238,7 @@ pub fn hw_proof_verify_base4(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("201", 4).unwrap();
     let commitment = secret.commit(base, max_number_bits).unwrap();
@@ -257,7 +257,7 @@ pub fn hw_proof_verify_base4_max(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("18446744073709551613", 10).unwrap();
     let commitment = secret.commit(base, max_number_bits).unwrap();
@@ -276,7 +276,7 @@ pub fn hw_proof_verify_base16(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("CB", 16).unwrap();
     let commitment = secret.commit(base, max_number_bits).unwrap();
@@ -295,7 +295,7 @@ pub fn hw_proof_verify_base16_max(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("18446744073709551613", 10).unwrap();
     let commitment = secret.commit(base, max_number_bits).unwrap();
@@ -314,7 +314,7 @@ pub fn hw_proof_verify_base256_max(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("18446744073709551613", 10).unwrap();
     let commitment = secret.commit(base, max_number_bits).unwrap();
@@ -333,7 +333,7 @@ pub fn hw_proof_verify_base256_minimum_value(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("1", 10).unwrap();
     let commitment = secret.commit(base, max_number_bits).unwrap();
@@ -352,7 +352,7 @@ pub fn hw_proof_verify_base256_1million(c: &mut Criterion) {
     let mut rng = OsRng;
     let mut seed = [0u8; 32];
     rng.fill_bytes(&mut seed);
-    let secret = Secret::<Sha256>::gen(&seed, &value);
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
     let threshold = BigUint::from_str_radix("500000", 10).unwrap();
     let commitment = secret.commit(base, max_number_bits).unwrap();
