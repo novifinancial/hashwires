@@ -207,32 +207,6 @@ impl<D: TypeName> TypeName for HashNodeSmt<D> {
 
 /// ======================================================================================
 
-impl TypeName for blake3::Hasher {
-    fn get_name() -> String {
-        "Blake3".to_owned()
-    }
-}
-
-impl TypeName for blake2::Blake2b {
-    fn get_name() -> String {
-        "Blake2b".to_owned()
-    }
-}
-
-impl TypeName for sha2::Sha256 {
-    fn get_name() -> String {
-        "Sha2".to_owned()
-    }
-}
-
-impl TypeName for sha3::Sha3_256 {
-    fn get_name() -> String {
-        "Sha3".to_owned()
-    }
-}
-
-/// ======================================================================================
-
 /// An SMT node that carries a u64 value, and merging is computed as the sum of two nodes.
 #[derive(Default, Clone, Debug)]
 pub struct SumNodeSmt(u64);
@@ -304,5 +278,31 @@ impl Rand for SumNodeSmt {
 impl TypeName for SumNodeSmt {
     fn get_name() -> String {
         "Sum".to_owned()
+    }
+}
+
+/// ======================================================================================
+
+impl TypeName for blake3::Hasher {
+    fn get_name() -> String {
+        "Blake3".to_owned()
+    }
+}
+
+impl TypeName for blake2::Blake2b {
+    fn get_name() -> String {
+        "Blake2b".to_owned()
+    }
+}
+
+impl TypeName for sha2::Sha256 {
+    fn get_name() -> String {
+        "Sha2".to_owned()
+    }
+}
+
+impl TypeName for sha3::Sha3_256 {
+    fn get_name() -> String {
+        "Sha3".to_owned()
     }
 }

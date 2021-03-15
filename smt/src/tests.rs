@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
+use crate::pad_secret::ALL_ZEROS_SECRET;
 use crate::{
     index::{TreeIndex, MAX_HEIGHT},
     node_template,
@@ -38,13 +39,13 @@ fn test_tree_exceed_max_height() {
 #[test]
 fn test_padding_provable() {
     let mut idx = TreeIndex::zero(256);
-    let secret = Secret::all_zeros_secret();
+    let secret = &ALL_ZEROS_SECRET;
     for _i in 0..1000 {
         idx.randomize();
         let sum = node_template::SumNodeSmt::padding(&idx);
         assert!(node_template::SumNodeSmt::verify_padding_node(
             &sum.get_proof_node(),
-            &sum.prove_padding_node(&idx, &secret),
+            &sum.prove_padding_node(&idx, secret),
             &idx
         ));
 

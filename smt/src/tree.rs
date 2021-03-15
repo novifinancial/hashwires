@@ -3,7 +3,7 @@
 
 use std::fmt::Debug;
 
-use crate::pad_secret::Secret;
+use crate::pad_secret::{Secret, ALL_ZEROS_SECRET};
 use crate::{
     error::{DecodingError, TreeError},
     index::{TreeIndex, MAX_HEIGHT},
@@ -154,7 +154,7 @@ where
             panic!("{}", DecodingError::ExceedMaxHeight);
         }
         let mut root_node = TreeNode::<P>::new(NodeType::Padding);
-        root_node.set_value(P::padding(&TreeIndex::zero(0), &Secret::all_zeros_secret()));
+        root_node.set_value(P::padding(&TreeIndex::zero(0), &ALL_ZEROS_SECRET));
         SparseMerkleTree {
             height,
             root: 0,
@@ -674,9 +674,7 @@ where
         for index in list {
             list_for_building.push((*index, Nil));
         }
-        if let Some(x) =
-            proof_tree.construct_smt_nodes(&list_for_building, &Secret::all_zeros_secret())
-        {
+        if let Some(x) = proof_tree.construct_smt_nodes(&list_for_building, &ALL_ZEROS_SECRET) {
             panic!("{}", x);
         }
 
