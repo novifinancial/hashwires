@@ -3,7 +3,7 @@
 
 use std::fmt::Debug;
 
-use crate::pad_secret::Secret;
+use crate::pad_secret::{Secret, ALL_ZEROS_SECRET};
 use crate::{
     error::DecodingError,
     index::TreeIndex,
@@ -156,9 +156,7 @@ where
         for index in &self.indexes {
             list_for_building.push((*index, Nil));
         }
-        if let Some(_x) =
-            proof_tree.construct_smt_nodes(&list_for_building, &Secret::all_zeros_secret())
-        {
+        if let Some(_x) = proof_tree.construct_smt_nodes(&list_for_building, &ALL_ZEROS_SECRET) {
             return false;
         }
 

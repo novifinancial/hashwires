@@ -8,6 +8,7 @@ use rand::{CryptoRng, RngCore};
 
 /// The length of an SMTree `Secret`, in bytes.
 pub const SECRET_LENGTH: usize = 32;
+pub const ALL_ZEROS_SECRET: Secret = Secret([0u8; 32]);
 
 /// An SMTree secret.
 ///
@@ -101,10 +102,5 @@ impl Secret {
         let mut sk: Secret = Secret([0u8; 32]);
         csprng.fill_bytes(&mut sk.0);
         sk
-    }
-
-    /// Return an all zeros secret
-    pub fn all_zeros_secret() -> Secret {
-        Secret([0u8; 32])
     }
 }

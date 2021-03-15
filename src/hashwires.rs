@@ -550,6 +550,7 @@ mod tests {
     use blake3::Hasher as Blake3;
     use num_traits::Num;
     use rand_core::{OsRng, RngCore};
+    use smt::pad_secret::ALL_ZEROS_SECRET;
     use smt::utils::print_output;
 
     fn prove_and_verify(
@@ -675,7 +676,7 @@ mod tests {
         v.push(a);
         v.push(b);
         v.push(c);
-        tree.build(&v, &SmtSecret::all_zeros_secret());
+        tree.build(&v, &ALL_ZEROS_SECRET);
         println!("{}", tree.get_leaves().len());
         print_output(&tree);
 
