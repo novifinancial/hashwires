@@ -17,7 +17,7 @@ use crate::serialization::{serialize, take_slice, tokenize};
 use crate::shuffle::deterministic_index_shuffling;
 use crate::traits::Hash;
 use smt::index::TreeIndex;
-use smt::node_template::HashNodeSmt;
+use smt::node_template::HashWiresNodeSmt;
 use smt::pad_secret::Secret as SmtSecret;
 use smt::traits::Serializable;
 use smt::utils::set_pos_best;
@@ -310,11 +310,11 @@ pub fn proof_verify<D: Hash>(
     let salted_mdp_root = salted_hash::<D>(mdp_salt, &mdp_root);
 
     // Decode the Merkle proof.
-    let deserialized_proof = MerkleProof::<HashNodeSmt<D>>::deserialize(&smt_inclusion_proof)
+    let deserialized_proof = MerkleProof::<HashWiresNodeSmt<D>>::deserialize(&smt_inclusion_proof)
         .map_err(|_| HwError::MerkleProofDecodingError)?;
 
-    let commitment_node = HashNodeSmt::<D>::new(commitment.to_owned());
-    let smt_mdp_node = HashNodeSmt::<D>::new(salted_mdp_root.to_vec());
+    let commitment_node = HashWiresNodeSmt::<D>::new(commitment.to_owned());
+    let smt_mdp_node = HashWiresNodeSmt::<D>::new(salted_mdp_root.to_vec());
 
     Ok(deserialized_proof.verify_inclusion_proof(&[smt_mdp_node], &commitment_node))
 }
@@ -425,19 +425,19 @@ fn final_smt_root<D: Hash>(
     tree_height: usize,
     smt_secret: &SmtSecret,
 ) -> Vec<u8> {
-    let mut smt_leaves: Vec<(TreeIndex, node_template::HashNodeSmt<D>)> = top_salted_roots
+    let mut smt_leaves: Vec<(TreeIndex, node_template::HashWiresNodeSmt<D>)> = top_salted_roots
         .iter()
         .enumerate()
         .map(|(i, s)| {
             (
                 set_pos_best(tree_height, shuffled_indexes[i] as u32),
-                node_template::HashNodeSmt::<D>::new(s.to_vec()),
+                node_template::HashWiresNodeSmt::<D>::new(s.to_vec()),
             )
         })
         .collect();
 
     smt_leaves.sort_by(|(t1, _), (t2, _)| t1.cmp(t2));
-    let mut tree: Smt<node_template::HashNodeSmt<D>> = Smt::new(tree_height);
+    let mut tree: Smt<node_template::HashWiresNodeSmt<D>> = Smt::new(tree_height);
     tree.build(&smt_leaves, smt_secret);
     tree.get_root_raw().serialize()
 }
@@ -449,13 +449,13 @@ fn final_smt_root_and_proof<D: Hash>(
     leaf_index: usize,
     smt_secret: &SmtSecret,
 ) -> Result<(Vec<u8>, Vec<u8>), HwError> {
-    let mut smt_leaves: Vec<(TreeIndex, node_template::HashNodeSmt<D>)> = top_salted_roots
+    let mut smt_leaves: Vec<(TreeIndex, node_template::HashWiresNodeSmt<D>)> = top_salted_roots
         .iter()
         .enumerate()
         .map(|(i, s)| {
             (
                 set_pos_best(tree_height, shuffled_indexes[i] as u32),
-                node_template::HashNodeSmt::<D>::new(s.to_vec()),
+                node_template::HashWiresNodeSmt::<D>::new(s.to_vec()),
             )
         })
         .collect();
@@ -463,11 +463,11 @@ fn final_smt_root_and_proof<D: Hash>(
     let node = smt_leaves[leaf_index].0;
 
     smt_leaves.sort_by(|(t1, _), (t2, _)| t1.cmp(t2));
-    let mut tree: Smt<node_template::HashNodeSmt<D>> = Smt::new(tree_height);
+    let mut tree: Smt<node_template::HashWiresNodeSmt<D>> = Smt::new(tree_height);
     tree.build(&smt_leaves, smt_secret);
 
     let inclusion_proof =
-        MerkleProof::<node_template::HashNodeSmt<D>>::generate_inclusion_proof(&tree, &[node])
+        MerkleProof::<node_template::HashWiresNodeSmt<D>>::generate_inclusion_proof(&tree, &[node])
             .ok_or(HwError::InclusionProofError)?;
     let smt_proof = inclusion_proof.serialize();
 
@@ -607,7 +607,7 @@ mod tests {
         )?;
         assert_eq!(
             hex::encode(&hw_commit_and_proof.0),
-            "c792382b1e110338b7574cc16caecacbc54d20d0b205f34464c6c83de592beef"
+            "f2829e0e39d30fe589f79b866947bc93b9d6585193705bea3a5dc03eaa59eb02"
         );
         assert!(proof_verify::<Blake3>(
             &threshold,
@@ -627,7 +627,7 @@ mod tests {
         let hw_commit = commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height)?;
         assert_eq!(
             hex::encode(hw_commit),
-            "09bde6e6432f0b5ff0ff99e6d24cb7901bd6b0dad41959ed289e496e22fbc67f"
+            "611a69247b1e60e269459546d6abc6c573e50b3edf50e61139ea57d416108892"
         );
 
         let max_digits = 64;
@@ -649,7 +649,7 @@ mod tests {
         let hw_commit = commit_gen::<Blake3>(&value, base, &seed, max_digits, mdp_tree_height)?;
         assert_eq!(
             hex::encode(hw_commit),
-            "15ae00e3ee932dbe70bc553b6dced17e81d6825fb83f9747a8c16f92098eae19"
+            "6a896722c2328838d25ce63877e29d25b4a550d5c53f3c32f330f31d006bc9ca"
         );
 
         Ok(())
@@ -658,19 +658,19 @@ mod tests {
     #[test]
     fn test_smt() -> Result<(), HwError> {
         let tree_height = 4;
-        let mut tree: Smt<node_template::HashNodeSmt<Blake3>> = Smt::new(tree_height);
+        let mut tree: Smt<node_template::HashWiresNodeSmt<Blake3>> = Smt::new(tree_height);
         let mut v = vec![];
         let a = (
             set_pos_best(tree_height, 0),
-            node_template::HashNodeSmt::<Blake3>::new(vec![1; 32]),
+            node_template::HashWiresNodeSmt::<Blake3>::new(vec![1; 32]),
         );
         let b = (
             set_pos_best(tree_height, 1),
-            node_template::HashNodeSmt::<Blake3>::new(vec![2; 32]),
+            node_template::HashWiresNodeSmt::<Blake3>::new(vec![2; 32]),
         );
         let c = (
             set_pos_best(tree_height, 15),
-            node_template::HashNodeSmt::<Blake3>::new(vec![3; 32]),
+            node_template::HashWiresNodeSmt::<Blake3>::new(vec![3; 32]),
         );
         v.push(a);
         v.push(b);

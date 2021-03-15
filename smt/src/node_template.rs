@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use digest::Digest;
 use rand::Rng;
 
+use crate::pad_secret::Secret;
 use crate::{
     error::DecodingError,
     index::TreeIndex,
@@ -11,12 +12,93 @@ use crate::{
     },
     utils::{bytes_to_usize, usize_to_bytes},
 };
-use crate::pad_secret::Secret;
 
-const SECRET: &str = "secret";
 pub const PADDING_STRING: &str = "padding_node";
 
-/// An SMT node that carries just a hash value
+/// A HashWires SMT node for the top accumulator that carries just a hash value
+#[derive(Default, Clone, Debug)]
+pub struct HashWiresNodeSmt<D> {
+    hash: Vec<u8>,
+    phantom: PhantomData<D>,
+}
+
+impl<D> HashWiresNodeSmt<D> {
+    pub fn new(hash: Vec<u8>) -> HashWiresNodeSmt<D> {
+        HashWiresNodeSmt {
+            hash,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<D> PartialEq for HashWiresNodeSmt<D> {
+    fn eq(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
+}
+
+impl<D> Eq for HashWiresNodeSmt<D> {}
+
+impl<D: Digest> Mergeable for HashWiresNodeSmt<D> {
+    fn merge(lch: &HashWiresNodeSmt<D>, rch: &HashWiresNodeSmt<D>) -> HashWiresNodeSmt<D> {
+        let mut hasher = D::new();
+        hasher.update(&lch.hash);
+        hasher.update(&rch.hash);
+        HashWiresNodeSmt::new(hasher.finalize().to_vec())
+    }
+}
+
+impl<D: Digest> Paddable for HashWiresNodeSmt<D> {
+    fn padding(idx: &TreeIndex, secret: &Secret) -> HashWiresNodeSmt<D> {
+        let mut hasher = D::new();
+        // TODO add some identifier hasher.update(PADDING_STRING.as_bytes());
+        hasher.update(secret.as_bytes());
+        hasher.update(&TreeIndex::serialize(&[*idx]));
+        HashWiresNodeSmt::new(hasher.finalize().to_vec())
+    }
+}
+
+impl<D: Digest> Serializable for HashWiresNodeSmt<D> {
+    fn serialize(&self) -> Vec<u8> {
+        (&self.hash).clone()
+    }
+
+    fn deserialize_as_a_unit(bytes: &[u8], begin: &mut usize) -> Result<Self, DecodingError> {
+        if bytes.len() - *begin < D::output_size() {
+            return Err(DecodingError::BytesNotEnough);
+        }
+        let item = Self::new(bytes[*begin..*begin + D::output_size()].to_vec());
+        *begin += D::output_size();
+        Ok(item)
+    }
+}
+
+impl<D: Clone> ProofExtractable for HashWiresNodeSmt<D> {
+    type ProofNode = HashWiresNodeSmt<D>;
+    fn get_proof_node(&self) -> Self::ProofNode {
+        self.clone()
+    }
+}
+
+impl<D: Digest> Rand for HashWiresNodeSmt<D> {
+    fn randomize(&mut self) {
+        *self = HashWiresNodeSmt::new(vec![0u8; D::output_size()]);
+        let mut rng = rand::thread_rng();
+        for item in &mut self.hash {
+            *item = rng.gen();
+        }
+    }
+}
+
+impl<D: TypeName> TypeName for HashWiresNodeSmt<D> {
+    fn get_name() -> String {
+        format!("HashWires hash ({})", D::get_name())
+    }
+}
+
+/// ======================================================================================
+
+/// A HashWires SMT node for the top accumulator that carries just a hash value
 #[derive(Default, Clone, Debug)]
 pub struct HashNodeSmt<D> {
     hash: Vec<u8>,
@@ -87,10 +169,10 @@ impl<D: Clone> ProofExtractable for HashNodeSmt<D> {
 impl<D: Clone + Digest> PaddingProvable for HashNodeSmt<D> {
     type PaddingProof = HashNodeSmt<D>;
 
-    fn prove_padding_node(&self, idx: &TreeIndex) -> HashNodeSmt<D> {
+    fn prove_padding_node(&self, idx: &TreeIndex, secret: &Secret) -> HashNodeSmt<D> {
         let data = TreeIndex::serialize(&[*idx]);
         let mut pre_image = D::new();
-        pre_image.update(SECRET.as_bytes());
+        pre_image.update(secret.as_bytes());
         pre_image.update(&data);
         HashNodeSmt::new(pre_image.finalize().to_vec())
     }
@@ -123,6 +205,8 @@ impl<D: TypeName> TypeName for HashNodeSmt<D> {
     }
 }
 
+/// ======================================================================================
+
 impl TypeName for blake3::Hasher {
     fn get_name() -> String {
         "Blake3".to_owned()
@@ -146,6 +230,8 @@ impl TypeName for sha3::Sha3_256 {
         "Sha3".to_owned()
     }
 }
+
+/// ======================================================================================
 
 /// An SMT node that carries a u64 value, and merging is computed as the sum of two nodes.
 #[derive(Default, Clone, Debug)]
@@ -199,7 +285,7 @@ impl ProofExtractable for SumNodeSmt {
 
 impl PaddingProvable for SumNodeSmt {
     type PaddingProof = SumNodeSmt;
-    fn prove_padding_node(&self, _idx: &TreeIndex) -> SumNodeSmt {
+    fn prove_padding_node(&self, _idx: &TreeIndex, _secret: &Secret) -> SumNodeSmt {
         SumNodeSmt(0)
     }
     fn verify_padding_node(node: &SumNodeSmt, proof: &SumNodeSmt, _idx: &TreeIndex) -> bool {

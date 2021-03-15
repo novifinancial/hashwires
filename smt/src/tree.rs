@@ -3,13 +3,13 @@
 
 use std::fmt::Debug;
 
+use crate::pad_secret::Secret;
 use crate::{
     error::{DecodingError, TreeError},
     index::{TreeIndex, MAX_HEIGHT},
     traits::{Mergeable, Paddable, ProofExtractable, Serializable},
     utils::Nil,
 };
-use crate::pad_secret::Secret;
 
 /// The direction of a child node, either left or right.
 #[derive(Debug, Clone, PartialEq, Copy)]
@@ -412,7 +412,11 @@ where
     ///
     /// If there are duplicated indexes in the list,
     /// return [TreeError::IndexDuplicated](../error/enum.TreeError.html#variant.IndexDuplicated).
-    pub fn construct_smt_nodes(&mut self, list: &[(TreeIndex, P)], secret: &Secret) -> Option<TreeError> {
+    pub fn construct_smt_nodes(
+        &mut self,
+        list: &[(TreeIndex, P)],
+        secret: &Secret,
+    ) -> Option<TreeError> {
         // Check the validity of the input list.
         if let Some(x) = self.check_index_list_validity(list) {
             return Some(x);
@@ -670,7 +674,9 @@ where
         for index in list {
             list_for_building.push((*index, Nil));
         }
-        if let Some(x) = proof_tree.construct_smt_nodes(&list_for_building, &Secret::all_zeros_secret()) {
+        if let Some(x) =
+            proof_tree.construct_smt_nodes(&list_for_building, &Secret::all_zeros_secret())
+        {
             panic!("{}", x);
         }
 

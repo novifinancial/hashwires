@@ -3,6 +3,7 @@
 
 use std::fmt::Debug;
 
+use crate::pad_secret::Secret;
 use crate::{
     error::DecodingError,
     index::TreeIndex,
@@ -13,7 +14,6 @@ use crate::{
     tree::{ChildDir, NodeType, SparseMerkleTree},
     utils::{bytes_to_usize, usize_to_bytes, Nil},
 };
-use crate::pad_secret::Secret;
 
 // The number of bytes for encoding the batch num in a Merkle proof.
 const BATCH_NUM_BYTE_NUM: usize = 8;
@@ -156,7 +156,9 @@ where
         for index in &self.indexes {
             list_for_building.push((*index, Nil));
         }
-        if let Some(_x) = proof_tree.construct_smt_nodes(&list_for_building, &Secret::all_zeros_secret()) {
+        if let Some(_x) =
+            proof_tree.construct_smt_nodes(&list_for_building, &Secret::all_zeros_secret())
+        {
             return false;
         }
 
@@ -508,7 +510,7 @@ where
     type ProofNodeType = V::ProofNode;
     type TreeStruct = SparseMerkleTree<V>;
 
-    fn random_sampling(tree: &Self::TreeStruct, idx: &TreeIndex) -> Self {
+    fn random_sampling(tree: &Self::TreeStruct, idx: &TreeIndex, secret: &Secret) -> Self {
         // Fetch the lowest ancestor of the sampled index in the tree.
         let (ancestor, ancestor_idx) = tree.get_closest_ancestor_ref_index(idx);
 
@@ -553,7 +555,7 @@ where
                 padding_proofs.push(
                     tree.get_node_by_ref(tree.get_root_ref())
                         .get_value()
-                        .prove_padding_node(&TreeIndex::zero(0)),
+                        .prove_padding_node(&TreeIndex::zero(0), secret),
                 );
             }
             1 => {
@@ -582,6 +584,7 @@ where
                     &mut padding_proofs,
                     refs,
                     padding_refs,
+                    secret,
                 )
             }
             _ => {
@@ -601,6 +604,7 @@ where
                     &mut padding_proofs,
                     refs,
                     padding_refs,
+                    secret,
                 )
             }
         }
@@ -726,12 +730,13 @@ where
         padding_proofs: &mut Vec<<V as PaddingProvable>::PaddingProof>,
         refs: Vec<usize>,
         padding_refs: Vec<(TreeIndex, usize)>,
+        secret: &Secret,
     ) {
         for (index, item) in padding_refs {
             padding_proofs.push(
                 tree.get_node_by_ref(refs[refs.len() - 1 - item])
                     .get_value()
-                    .prove_padding_node(&index),
+                    .prove_padding_node(&index, secret),
             );
         }
     }
