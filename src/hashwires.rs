@@ -16,12 +16,14 @@ use crate::hashes::{
 use crate::serialization::{serialize, take_slice, tokenize};
 use crate::shuffle::deterministic_index_shuffling;
 use crate::traits::Hash;
-use smt::index::TreeIndex;
-use smt::node_template::HashWiresNodeSmt;
-use smt::pad_secret::Secret as SmtSecret;
-use smt::traits::Serializable;
-use smt::utils::set_pos_best;
-use smt::{node_template, proof::MerkleProof, traits::InclusionProvable, tree::SparseMerkleTree};
+use smtree::index::TreeIndex;
+use smtree::node_template::HashWiresNodeSmt;
+use smtree::pad_secret::Secret as SmtSecret;
+use smtree::traits::Serializable;
+use smtree::utils::set_pos_best;
+use smtree::{
+    node_template, proof::MerkleProof, traits::InclusionProvable, tree::SparseMerkleTree,
+};
 use std::marker::PhantomData;
 
 type Smt<P> = SparseMerkleTree<P>;
@@ -550,8 +552,8 @@ mod tests {
     use blake3::Hasher as Blake3;
     use num_traits::Num;
     use rand_core::{OsRng, RngCore};
-    use smt::pad_secret::ALL_ZEROS_SECRET;
-    use smt::utils::print_output;
+    use smtree::pad_secret::ALL_ZEROS_SECRET;
+    use smtree::utils::print_output;
 
     fn prove_and_verify(
         base: u32,
