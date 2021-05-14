@@ -130,6 +130,44 @@ pub fn value_split_per_base(value: &BigUint, bitlength: usize) -> Vec<u8> {
     ret
 }
 
+/// Find dominating partition of a u32 integer `value` in some u32 input `base`.
+/// This is for demonstration purposes and included in the HashWires paper.
+#[allow(dead_code)]
+pub fn find_mdp_u32(value: u32, base: u32) -> Vec<u32> {
+    let mut exp = base;
+    let mut ret: Vec<u32> = vec![value];
+    let mut prev = value;
+
+    while exp < value {
+        if (value + 1) % exp != 0 {
+            let temp = value / exp * exp - 1;
+            if prev != temp {
+                ret.push(temp);
+                prev = temp;
+            }
+        }
+        exp *= base;
+    }
+    ret
+}
+
+#[test]
+fn test_mdp_u32() {
+    let mdp_u32 = find_mdp_u32(8733432, 10);
+    assert_eq!(
+        mdp_u32,
+        vec![8733432, 8733429, 8733399, 8732999, 8729999, 8699999, 7999999]
+    );
+    let mdp_u32 = find_mdp_u32(3413, 10);
+    assert_eq!(mdp_u32, vec![3413, 3409, 3399, 2999]);
+    let mdp_u32 = find_mdp_u32(9999, 16);
+    assert_eq!(mdp_u32, vec![9999, 9983, 8191]);
+    let mdp_u32 = find_mdp_u32(255, 2);
+    assert_eq!(mdp_u32, vec![255]);
+    let mdp_u32 = find_mdp_u32(254, 2);
+    assert_eq!(mdp_u32, vec![254, 253, 251, 247, 239, 223, 191, 127]);
+}
+
 #[test]
 fn test_dp() {
     // base10

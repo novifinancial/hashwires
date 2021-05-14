@@ -20,7 +20,6 @@ use smtree::index::TreeIndex;
 use smtree::node_template::HashWiresNodeSmt;
 use smtree::pad_secret::Secret as SmtSecret;
 use smtree::traits::Serializable;
-use smtree::utils::set_pos_best;
 use smtree::{
     node_template, proof::MerkleProof, traits::InclusionProvable, tree::SparseMerkleTree,
 };
@@ -33,12 +32,14 @@ pub(crate) type ChainNodesSize = U32;
 pub(crate) type MdpSaltSize = U16;
 pub(crate) type SmtSecretSize = U32;
 
+/// HashWires commitment structure.
 pub struct Commitment<D: Hash> {
     base: u32,
     commitment: Vec<u8>,
     _d: PhantomData<D>,
 }
 
+/// HashWires secret (value, seed) tuple.
 pub struct Secret<D: Hash> {
     value: BigUint,
     seed: Vec<u8>,
@@ -46,6 +47,7 @@ pub struct Secret<D: Hash> {
 }
 
 impl<D: Hash> Secret<D> {
+    /// Generate a HashWires secret.
     pub fn gen(seed: &[u8], value: &BigUint) -> Self {
         Self {
             value: value.clone(),
@@ -54,6 +56,7 @@ impl<D: Hash> Secret<D> {
         }
     }
 
+    /// Generate a HashWires commitment.
     pub fn commit(&self, base: u32, max_number_bits: usize) -> Result<Commitment<D>, HwError> {
         let mdp_smt_height = compute_mdp_height(base, max_number_bits);
         let commitment = commit_gen::<D>(
@@ -70,6 +73,7 @@ impl<D: Hash> Secret<D> {
         })
     }
 
+    /// Generate HashWires proof.
     pub fn prove(
         &self,
         base: u32,
@@ -77,7 +81,7 @@ impl<D: Hash> Secret<D> {
         threshold: &BigUint,
     ) -> Result<Proof, HwError> {
         let mdp_smt_height = compute_mdp_height(base, max_number_bits);
-        let result = bigger_than_proof_gen::<D>(
+        let result = larger_than_proof_gen::<D>(
             threshold,
             &self.value,
             base,
@@ -95,6 +99,7 @@ impl<D: Hash> Secret<D> {
 }
 
 impl<D: Hash> Commitment<D> {
+    /// Verify a HashWires proof over a commitment.
     pub fn verify(&self, proof: &Proof, threshold: &BigUint) -> Result<(), HwError> {
         let result = proof_verify::<D>(
             threshold,
@@ -111,10 +116,12 @@ impl<D: Hash> Commitment<D> {
         }
     }
 
+    /// Serialize a HashWires commitment.
     pub fn serialize(&self) -> Vec<u8> {
         self.commitment.clone()
     }
 
+    /// Deserialize a HashWires commitment.
     pub fn deserialize(bytes: &[u8], base: u32) -> Self {
         Self {
             base,
@@ -124,6 +131,7 @@ impl<D: Hash> Commitment<D> {
     }
 }
 
+/// HashWires Proof structure.
 pub struct Proof {
     plr_padding: Option<GenericArray<u8, PlrPaddingSize>>,
     chain_nodes: Vec<GenericArray<u8, ChainNodesSize>>,
@@ -132,6 +140,7 @@ pub struct Proof {
 }
 
 impl Proof {
+    /// Serializing a HashWires proof.
     pub fn serialize(&self) -> Vec<u8> {
         let mut chain_nodes_flattened = vec![];
         for elem in self.chain_nodes.iter() {
@@ -143,13 +152,14 @@ impl Proof {
             &serialize(&self.smt_inclusion_proof, 2),
         ]
         .concat();
-        if let Some(v) = self.plr_padding {
+        if let Some(v) = &self.plr_padding {
             result.extend_from_slice(&v);
         }
 
         result
     }
 
+    /// Deserializing a HashWires proof.
     pub fn deserialize(input: &[u8]) -> Result<Self, HwError> {
         let (chain_nodes_flattened, remainder) = tokenize(&input, 2)?;
         let (mdp_salt, remainder) = take_slice(&remainder, MdpSaltSize::to_usize())?;
@@ -186,8 +196,9 @@ impl Proof {
     }
 }
 
+/// Generate larger than proof.
 #[allow(clippy::type_complexity)]
-pub fn bigger_than_proof_gen<D: Hash>(
+pub fn larger_than_proof_gen<D: Hash>(
     proving_value: &BigUint,
     value: &BigUint,
     base: u32,
@@ -274,6 +285,7 @@ pub fn bigger_than_proof_gen<D: Hash>(
     ))
 }
 
+/// Verify HashWires proof.
 pub fn proof_verify<D: Hash>(
     proving_value: &BigUint,
     base: u32,
@@ -321,6 +333,7 @@ pub fn proof_verify<D: Hash>(
     Ok(deserialized_proof.verify_inclusion_proof(&[smt_mdp_node], &commitment_node))
 }
 
+/// Generate HashWires commitment.
 pub fn commit_gen<D: Hash>(
     value: &BigUint,
     base: u32,
@@ -379,7 +392,7 @@ pub fn commit_gen<D: Hash>(
 // Helper functions //
 //////////////////////
 
-/// Get required chain nodes for proofs
+// Get required chain nodes for proofs
 fn proving_value_chain_nodes(
     chains: &[Vec<[u8; 32]>],
     mdp_splits: &[Vec<u8>],
@@ -399,8 +412,8 @@ fn proving_value_chain_nodes(
         .collect()
 }
 
-/// find the mdp index where proving_value <= mdp[i]
-/// TODO: use binary search
+// find the mdp index where proving_value <= mdp[i]
+// TODO: use binary search
 fn pick_mdp_index(proving_value: &BigUint, mdp: &[BigUint]) -> Result<usize, HwError> {
     for i in (0..mdp.len()).rev() {
         if proving_value <= &mdp[i] {
@@ -410,7 +423,7 @@ fn pick_mdp_index(proving_value: &BigUint, mdp: &[BigUint]) -> Result<usize, HwE
     Err(HwError::MdpError)
 }
 
-/// Compute base's bitlength.
+// Compute base's bitlength.
 fn compute_bitlength(base: u32) -> usize {
     match base {
         2 => 1,
@@ -427,21 +440,28 @@ fn final_smt_root<D: Hash>(
     tree_height: usize,
     smt_secret: &SmtSecret,
 ) -> Vec<u8> {
-    let mut smt_leaves: Vec<(TreeIndex, node_template::HashWiresNodeSmt<D>)> = top_salted_roots
-        .iter()
-        .enumerate()
-        .map(|(i, s)| {
-            (
-                set_pos_best(tree_height, shuffled_indexes[i] as u32),
-                node_template::HashWiresNodeSmt::<D>::new(s.to_vec()),
-            )
-        })
-        .collect();
-
+    let mut smt_leaves = compute_smt_leaves(top_salted_roots, shuffled_indexes, tree_height);
     smt_leaves.sort_by(|(t1, _), (t2, _)| t1.cmp(t2));
     let mut tree: Smt<node_template::HashWiresNodeSmt<D>> = Smt::new(tree_height);
     tree.build(&smt_leaves, smt_secret);
     tree.get_root_raw().serialize()
+}
+
+fn compute_smt_leaves<D: Hash>(
+    top_salted_roots: &[[u8; 32]],
+    shuffled_indexes: &[usize],
+    tree_height: usize,
+) -> Vec<(TreeIndex, node_template::HashWiresNodeSmt<D>)> {
+    top_salted_roots
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            (
+                TreeIndex::from_u32(tree_height, shuffled_indexes[i] as u32),
+                node_template::HashWiresNodeSmt::<D>::new(s.to_vec()),
+            )
+        })
+        .collect()
 }
 
 fn final_smt_root_and_proof<D: Hash>(
@@ -451,16 +471,7 @@ fn final_smt_root_and_proof<D: Hash>(
     leaf_index: usize,
     smt_secret: &SmtSecret,
 ) -> Result<(Vec<u8>, Vec<u8>), HwError> {
-    let mut smt_leaves: Vec<(TreeIndex, node_template::HashWiresNodeSmt<D>)> = top_salted_roots
-        .iter()
-        .enumerate()
-        .map(|(i, s)| {
-            (
-                set_pos_best(tree_height, shuffled_indexes[i] as u32),
-                node_template::HashWiresNodeSmt::<D>::new(s.to_vec()),
-            )
-        })
-        .collect();
+    let mut smt_leaves = compute_smt_leaves(top_salted_roots, shuffled_indexes, tree_height);
 
     let node = smt_leaves[leaf_index].0;
 
@@ -600,7 +611,7 @@ mod tests {
         let value = BigUint::from_str_radix("212", 4).unwrap();
         let seed = [0u8; 32];
         let threshold = BigUint::from_str_radix("201", 4).unwrap();
-        let hw_commit_and_proof = bigger_than_proof_gen::<Blake3>(
+        let hw_commit_and_proof = larger_than_proof_gen::<Blake3>(
             &threshold,
             &value,
             base,
@@ -664,15 +675,15 @@ mod tests {
         let mut tree: Smt<node_template::HashWiresNodeSmt<Blake3>> = Smt::new(tree_height);
         let mut v = vec![];
         let a = (
-            set_pos_best(tree_height, 0),
+            TreeIndex::from_u32(tree_height, 0),
             node_template::HashWiresNodeSmt::<Blake3>::new(vec![1; 32]),
         );
         let b = (
-            set_pos_best(tree_height, 1),
+            TreeIndex::from_u32(tree_height, 1),
             node_template::HashWiresNodeSmt::<Blake3>::new(vec![2; 32]),
         );
         let c = (
-            set_pos_best(tree_height, 15),
+            TreeIndex::from_u32(tree_height, 15),
             node_template::HashWiresNodeSmt::<Blake3>::new(vec![3; 32]),
         );
         v.push(a);
