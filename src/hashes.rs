@@ -188,11 +188,11 @@ mod tests {
         let plr = plr_accumulator::<Blake3>(&seed, &values, 4, 3);
         assert!(plr.1.is_some());
         assert_eq!(
-            hex::encode(plr.0),
+            hex::encode(&plr.0),
             "4accab47316eb7c538da7b940ce45e459572fd194ce25f4d5d42ab753cbf3fb4"
         );
         assert_eq!(
-            hex::encode(plr.0),
+            hex::encode(&plr.0),
             "4accab47316eb7c538da7b940ce45e459572fd194ce25f4d5d42ab753cbf3fb4"
         );
     }
