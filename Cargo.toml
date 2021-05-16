@@ -16,26 +16,26 @@ name = "bp_bench"
 harness = false
 
 [dependencies]
-displaydoc = "0.1.7"
-num-bigint = "0.3.0"
+displaydoc = "0.2.1"
+num-bigint = "0.4.0"
 num-traits = "0.2.14"
 generic-array = "0.14.4"
 digest = "0.9.0"
-hex = "0.4.2"
+hex = "0.4.3"
 rand_chacha = "0.3.0"
-rand = "0.8.0"
-rand_core = "0.5.1"
-sha2 = "0.9.2"
+rand = "0.8.3"
+rand_core = "0.6.2"
+sha2 = "0.9.5"
 sha3 = "0.9.1"
 smtree = "0.1.1"
-thiserror = "1.0.22"
+thiserror = "1.0.24"
 
 [dev-dependencies.blake3]
 version = "0.3.7"
 features = ["rayon"]
 
 [dev-dependencies]
-criterion = "0.3.3"
-bulletproofs = "2.0.0"
-curve25519-dalek = "2.1.0"
-merlin = "2.0.0"
+criterion = "0.3.4"
+bulletproofs = "4.0.0"
+curve25519-dalek-ng = "4.0.1"
+merlin = "3.0.0"

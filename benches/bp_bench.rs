@@ -1,6 +1,6 @@
 use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
 use criterion::{criterion_group, criterion_main, Criterion};
-use curve25519_dalek::scalar::Scalar;
+use curve25519_dalek_ng::scalar::Scalar;
 use merlin::Transcript;
 
 const BIT_SIZE: usize = 64;
@@ -10,6 +10,7 @@ const BIT_SIZE: usize = 64;
 // const AGGREGATED_NUM_BYTE_NUM: usize = 2;
 // const INDIVIDUAL_NUM_BYTE_NUM: usize = 8;
 
+/// Bulletproofs proof generation benchmark.
 pub fn bp_proof_gen(c: &mut Criterion) {
     let pc_gens = PedersenGens::default();
     let bp_gens = BulletproofGens::new(BIT_SIZE, 1);
@@ -31,6 +32,7 @@ pub fn bp_proof_gen(c: &mut Criterion) {
     });
 }
 
+/// Bulletproofs proof generation benchmark for a small value.
 pub fn bp_proof_gen_small_value(c: &mut Criterion) {
     let pc_gens = PedersenGens::default();
     let bp_gens = BulletproofGens::new(BIT_SIZE, 1);
@@ -52,6 +54,7 @@ pub fn bp_proof_gen_small_value(c: &mut Criterion) {
     });
 }
 
+/// Bulletproofs proof verification.
 pub fn bp_proof_verify(c: &mut Criterion) {
     let pc_gens = PedersenGens::default();
     let bp_gens = BulletproofGens::new(BIT_SIZE, 1);

@@ -50,6 +50,8 @@ impl<T> Shuffler<T> for Durstenfeld {
     }
 }
 
+/// Deterministic Durstenfeld shuffling to return a list of random indexes in a range [0,max_num)
+/// It is required for shuffling the leaves in the sparse Merkle tree accumulator of HashWires.
 pub fn deterministic_index_shuffling(
     indexes_required: usize,
     max_num: usize,

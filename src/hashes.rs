@@ -108,6 +108,7 @@ pub fn salted_hash<D: Hash>(salt: &[u8], seed: &[u8]) -> [u8; 32] {
     output
 }
 
+/// Generate num_of_seeds subseeds from salt and seed.
 #[inline]
 pub fn generate_subseeds<D: Hash, N: ArrayLength<u8>>(
     salt: &[u8],
