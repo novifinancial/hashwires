@@ -115,6 +115,7 @@ fn coef(msg: &[u8], index: usize, bitlength: usize) -> u8 {
 }
 
 // TODO: it currently works for bases 2, 4, 16, 256 (bitlength 1, 2, 4, 8) only
+/// Split value, based on base in bitlength, (supports bitlength 1, 2, 4, 8).
 pub fn value_split_per_base(value: &BigUint, bitlength: usize) -> Vec<u8> {
     let v_bytes = value.to_bytes_be();
     let v = v_bytes.as_slice();

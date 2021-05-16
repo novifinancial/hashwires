@@ -6,6 +6,7 @@ use rand_core::{OsRng, RngCore};
 use blake3::Hasher as Blake3;
 use hashwires::hashwires::Secret;
 
+/// HashWires commitment generation benchmark for base4.
 pub fn hw_commitment_gen_base4(c: &mut Criterion) {
     let max_number_bits = 32;
     let base = 4;
@@ -21,6 +22,7 @@ pub fn hw_commitment_gen_base4(c: &mut Criterion) {
     });
 }
 
+/// HashWires commitment generation benchmark for base4 and a large issued value.
 pub fn hw_commitment_gen_base4_max(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 4;
@@ -36,6 +38,7 @@ pub fn hw_commitment_gen_base4_max(c: &mut Criterion) {
     });
 }
 
+/// HashWires commitment generation benchmark for base16.
 pub fn hw_commitment_gen_base16(c: &mut Criterion) {
     let max_number_bits = 32;
     let base = 16;
@@ -51,6 +54,7 @@ pub fn hw_commitment_gen_base16(c: &mut Criterion) {
     });
 }
 
+/// HashWires commitment generation benchmark for base16 and a large issued value.
 pub fn hw_commitment_gen_base16_max(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 16;
@@ -66,6 +70,7 @@ pub fn hw_commitment_gen_base16_max(c: &mut Criterion) {
     });
 }
 
+/// HashWires commitment generation benchmark for base256 and a large issued value.
 pub fn hw_commitment_gen_base256_max(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 256;
@@ -81,6 +86,7 @@ pub fn hw_commitment_gen_base256_max(c: &mut Criterion) {
     });
 }
 
+/// HashWires commitment generation benchmark for base16 and a small issued value.
 pub fn hw_commitment_gen_base256_minimum_value(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 256;
@@ -96,6 +102,7 @@ pub fn hw_commitment_gen_base256_minimum_value(c: &mut Criterion) {
     });
 }
 
+/// HashWires commitment generation benchmark for base16, for issued value = 1 million.
 pub fn hw_commitment_gen_base256_1million(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 256;
@@ -111,6 +118,7 @@ pub fn hw_commitment_gen_base256_1million(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof generation benchmark for base4.
 pub fn hw_proof_gen_base4(c: &mut Criterion) {
     let max_number_bits = 32;
     let base = 4;
@@ -128,6 +136,7 @@ pub fn hw_proof_gen_base4(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof generation benchmark for base4 and a large issued value.
 pub fn hw_proof_gen_base4_max(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 4;
@@ -145,6 +154,7 @@ pub fn hw_proof_gen_base4_max(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof generation benchmark for base16.
 pub fn hw_proof_gen_base16(c: &mut Criterion) {
     let max_number_bits = 32;
     let base = 16;
@@ -162,6 +172,7 @@ pub fn hw_proof_gen_base16(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof generation benchmark for base16 and a large issued value.
 pub fn hw_proof_gen_base16_max(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 16;
@@ -179,6 +190,7 @@ pub fn hw_proof_gen_base16_max(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof generation benchmark for base256 and a large issued value.
 pub fn hw_proof_gen_base256_max(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 256;
@@ -196,6 +208,7 @@ pub fn hw_proof_gen_base256_max(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof generation benchmark for base256 and a small issued value.
 pub fn hw_proof_gen_base256_minimum_value(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 256;
@@ -213,6 +226,7 @@ pub fn hw_proof_gen_base256_minimum_value(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof generation benchmark for base256 and issued value = 1 million.
 pub fn hw_proof_gen_base256_1million(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 256;
@@ -230,6 +244,7 @@ pub fn hw_proof_gen_base256_1million(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof verification benchmark for base4.
 pub fn hw_proof_verify_base4(c: &mut Criterion) {
     let max_number_bits = 32;
     let base = 4;
@@ -249,6 +264,7 @@ pub fn hw_proof_verify_base4(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof verification benchmark for base4 and a large issued value.
 pub fn hw_proof_verify_base4_max(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 4;
@@ -268,6 +284,7 @@ pub fn hw_proof_verify_base4_max(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof verification benchmark for base16.
 pub fn hw_proof_verify_base16(c: &mut Criterion) {
     let max_number_bits = 32;
     let base = 16;
@@ -287,6 +304,7 @@ pub fn hw_proof_verify_base16(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof verification benchmark for base16 and a large issued value.
 pub fn hw_proof_verify_base16_max(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 16;
@@ -306,6 +324,7 @@ pub fn hw_proof_verify_base16_max(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof generation benchmark for base256 and a large issued value.
 pub fn hw_proof_verify_base256_max(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 256;
@@ -325,6 +344,7 @@ pub fn hw_proof_verify_base256_max(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof generation benchmark for base256 and a small issued value.
 pub fn hw_proof_verify_base256_minimum_value(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 256;
@@ -344,6 +364,7 @@ pub fn hw_proof_verify_base256_minimum_value(c: &mut Criterion) {
     });
 }
 
+/// HashWires proof generation benchmark for base256 and issued value = 1 million.
 pub fn hw_proof_verify_base256_1million(c: &mut Criterion) {
     let max_number_bits = 64;
     let base = 256;

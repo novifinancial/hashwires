@@ -250,11 +250,7 @@ pub fn larger_than_proof_gen<D: Hash>(
     let salts = generate_subseeds::<D, MdpSaltSize>(TOP_SALT, seed, plr_roots.len());
 
     // Step 7: KDF smt roots
-    let top_salted_roots: Vec<[u8; 32]> = plr_roots
-        .iter()
-        .enumerate()
-        .map(|(i, v)| salted_hash::<D>(&salts[i], v))
-        .collect();
+    let top_salted_roots = compute_plr_roots::<D>(&plr_roots, &salts);
 
     // Step 8: get shuffled indexes
     let shuffled_indexes = deterministic_index_shuffling(
@@ -333,6 +329,17 @@ pub fn proof_verify<D: Hash>(
     Ok(deserialized_proof.verify_inclusion_proof(&[smt_mdp_node], &commitment_node))
 }
 
+fn compute_plr_roots<D: Hash>(
+    plr_roots: &[GenericArray<u8, PlrPaddingSize>],
+    salts: &[GenericArray<u8, MdpSaltSize>],
+) -> Vec<[u8; 32]> {
+    plr_roots
+        .iter()
+        .enumerate()
+        .map(|(i, v)| salted_hash::<D>(&salts[i], v))
+        .collect()
+}
+
 /// Generate HashWires commitment.
 pub fn commit_gen<D: Hash>(
     value: &BigUint,
@@ -364,11 +371,7 @@ pub fn commit_gen<D: Hash>(
     let salts = generate_subseeds::<D, MdpSaltSize>(TOP_SALT, seed, plr_roots.len());
 
     // Step 7: KDF smt roots
-    let top_salted_roots: Vec<[u8; 32]> = plr_roots
-        .iter()
-        .enumerate()
-        .map(|(i, v)| salted_hash::<D>(&salts[i], v))
-        .collect();
+    let top_salted_roots = compute_plr_roots::<D>(&plr_roots, &salts);
 
     // Step 8: get shuffled indexes
     let shuffled_indexes = deterministic_index_shuffling(

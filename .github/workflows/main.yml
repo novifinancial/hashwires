@@ -4,7 +4,7 @@ on:
     branches:
       - master
   pull_request:
-    types: [opened, repoened, synchronize]
+    types: [opened, reopened, synchronize]
 
 jobs:
   test:
@@ -20,7 +20,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-04-24
+          toolchain: nightly
           override: true
           components: rustfmt, clippy
 
@@ -41,7 +41,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-04-24
+          toolchain: nightly
           override: true
 
       - name: Run cargo bench --no-run
@@ -61,7 +61,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-04-24
+          toolchain: nightly
           override: true
           components: rustfmt, clippy
 
@@ -83,7 +83,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: nightly-2021-04-24
+          toolchain: nightly
           override: true
           components: rustfmt, clippy
 
