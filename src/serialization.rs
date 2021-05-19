@@ -1,6 +1,6 @@
 use crate::errors::HwError;
 
-// Corresponds to the I2OSP() function from RFC8017
+/// Corresponds to the I2OSP() function from RFC8017
 pub(crate) fn i2osp(input: usize, length: usize) -> Vec<u8> {
     if length <= std::mem::size_of::<usize>() {
         return (&input.to_be_bytes()[std::mem::size_of::<usize>() - length..]).to_vec();
@@ -14,7 +14,7 @@ pub(crate) fn i2osp(input: usize, length: usize) -> Vec<u8> {
     output
 }
 
-// Corresponds to the OS2IP() function from RFC8017
+/// Corresponds to the OS2IP() function from RFC8017
 pub(crate) fn os2ip(input: &[u8]) -> Result<usize, HwError> {
     if input.len() > std::mem::size_of::<usize>() {
         return Err(HwError::SerializationError);
@@ -25,13 +25,13 @@ pub(crate) fn os2ip(input: &[u8]) -> Result<usize, HwError> {
     Ok(usize::from_be_bytes(output_array))
 }
 
-// Computes I2OSP(len(input), max_bytes) || input
+/// Computes I2OSP(len(input), max_bytes) || input
 pub(crate) fn serialize(input: &[u8], max_bytes: usize) -> Vec<u8> {
     [&i2osp(input.len(), max_bytes), input].concat()
 }
 
-// Tokenizes an input of the format I2OSP(len(input), max_bytes) || input, outputting
-// (input, remainder)
+/// Tokenizes an input of the format I2OSP(len(input), max_bytes) || input, outputting
+/// (input, remainder)
 pub(crate) fn tokenize(input: &[u8], size_bytes: usize) -> Result<(Vec<u8>, Vec<u8>), HwError> {
     if size_bytes > std::mem::size_of::<usize>() || input.len() < size_bytes {
         return Err(HwError::SerializationError);
@@ -48,8 +48,8 @@ pub(crate) fn tokenize(input: &[u8], size_bytes: usize) -> Result<(Vec<u8>, Vec<
     ))
 }
 
-// Returns a slice of input of length len along with the remainder, throwing an error if it is
-// too short
+/// Returns a slice of input of length len along with the remainder, throwing an error if it is
+/// too short
 pub(crate) fn take_slice(input: &[u8], len: usize) -> Result<(&[u8], &[u8]), HwError> {
     if input.len() < len {
         return Err(HwError::SerializationError);

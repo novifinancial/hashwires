@@ -329,17 +329,6 @@ pub fn proof_verify<D: Hash>(
     Ok(deserialized_proof.verify_inclusion_proof(&[smt_mdp_node], &commitment_node))
 }
 
-fn compute_plr_roots<D: Hash>(
-    plr_roots: &[GenericArray<u8, PlrPaddingSize>],
-    salts: &[GenericArray<u8, MdpSaltSize>],
-) -> Vec<[u8; 32]> {
-    plr_roots
-        .iter()
-        .enumerate()
-        .map(|(i, v)| salted_hash::<D>(&salts[i], v))
-        .collect()
-}
-
 /// Generate HashWires commitment.
 pub fn commit_gen<D: Hash>(
     value: &BigUint,
@@ -394,6 +383,18 @@ pub fn commit_gen<D: Hash>(
 //////////////////////
 // Helper functions //
 //////////////////////
+
+// Compute plr roots; this function is reused, so we extracted it.
+fn compute_plr_roots<D: Hash>(
+    plr_roots: &[GenericArray<u8, PlrPaddingSize>],
+    salts: &[GenericArray<u8, MdpSaltSize>],
+) -> Vec<[u8; 32]> {
+    plr_roots
+        .iter()
+        .enumerate()
+        .map(|(i, v)| salted_hash::<D>(&salts[i], v))
+        .collect()
+}
 
 // Get required chain nodes for proofs
 fn proving_value_chain_nodes(
