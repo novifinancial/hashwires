@@ -10,7 +10,7 @@ pub const SMTREE_PADDING_SALT: &[u8; 32] = b"31234567890123456789012345678901";
 
 /// Output padding node + PLR accumulator
 #[inline]
-pub fn plr_accumulator<D: Hash>(
+pub(crate) fn plr_accumulator<D: Hash>(
     seed: &[u8],
     list: &[[u8; 32]],
     max_length: usize,
@@ -49,7 +49,7 @@ pub fn plr_accumulator<D: Hash>(
 
 /// Computes a hash chain using a seed and number of iterations.
 #[inline]
-pub fn hash_chain<D: Hash>(seed: &[u8], iterations: usize) -> [u8; 32] {
+pub(crate) fn hash_chain<D: Hash>(seed: &[u8], iterations: usize) -> [u8; 32] {
     // TODO: reuse hashers in single threaded applications, i.e. via finalize_reset()
     let mut output = [0u8; 32];
     let mut hasher = D::new();
@@ -63,7 +63,7 @@ pub fn hash_chain<D: Hash>(seed: &[u8], iterations: usize) -> [u8; 32] {
 
 /// Return all of the elements of the hash chain, where seed is at index = 0.
 #[inline]
-pub fn full_hash_chain<D: Hash>(seed: &[u8], size: usize) -> Vec<[u8; 32]> {
+pub(crate) fn full_hash_chain<D: Hash>(seed: &[u8], size: usize) -> Vec<[u8; 32]> {
     let mut hasher = D::new();
     let mut output = Vec::with_capacity(size);
     let mut temp = [0; 32];
@@ -77,7 +77,9 @@ pub fn full_hash_chain<D: Hash>(seed: &[u8], size: usize) -> Vec<[u8; 32]> {
     output
 }
 
-pub fn compute_hash_chains<D: Hash>(
+/// Return the vector of hashchains for a base and seed (all of the elements in the chains).
+#[inline]
+pub(crate) fn compute_hash_chains<D: Hash>(
     seed: &[u8],
     size: usize,
     base: u32,
@@ -99,7 +101,7 @@ pub fn compute_hash_chains<D: Hash>(
 /// Simple KDF hash(salt, i, seed)
 /// TODO: make it more generic to work for any seed size
 #[inline]
-pub fn salted_hash<D: Hash>(salt: &[u8], seed: &[u8]) -> [u8; 32] {
+pub(crate) fn salted_hash<D: Hash>(salt: &[u8], seed: &[u8]) -> [u8; 32] {
     let mut hasher = D::new();
     hasher.update(salt);
     hasher.update(seed);
@@ -110,7 +112,7 @@ pub fn salted_hash<D: Hash>(salt: &[u8], seed: &[u8]) -> [u8; 32] {
 
 /// Generate num_of_seeds subseeds from salt and seed.
 #[inline]
-pub fn generate_subseeds<D: Hash, N: ArrayLength<u8>>(
+pub(crate) fn generate_subseeds<D: Hash, N: ArrayLength<u8>>(
     salt: &[u8],
     seed: &[u8],
     num_of_seeds: usize,

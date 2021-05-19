@@ -2,7 +2,7 @@ use num_bigint::BigUint;
 use num_traits::{Num, One, Zero};
 
 /// Find dominating partition of a string `value` in some input `base` (any base).
-pub fn find_mdp(value: &BigUint, base: u32) -> Vec<BigUint> {
+pub(crate) fn find_mdp(value: &BigUint, base: u32) -> Vec<BigUint> {
     let mut exp = BigUint::from(base);
     let mut ret: Vec<BigUint> = Vec::new();
 
@@ -22,47 +22,6 @@ pub fn find_mdp(value: &BigUint, base: u32) -> Vec<BigUint> {
         }
         exp *= base;
     }
-    ret
-}
-
-/// Find dominating partition of a string `value` in some input `base` (works up to base 10).
-/// This is using BigUint and is returning a Vec of String in the same `base`.
-#[allow(dead_code)]
-pub fn find_dp_u32(value: &str, base: u32) -> Vec<String> {
-    let mut exp = BigUint::new(vec![base]);
-    let mut ret: Vec<String> = Vec::new();
-
-    let val = BigUint::from_str_radix(value, base).unwrap();
-    let val_plus1 = &val + BigUint::one();
-
-    ret.push(val.to_str_radix(base));
-    // We use prev to detect consecutive duplicate entries (a trick to avoid HashSet)
-    let mut prev = val.clone();
-    while exp < val {
-        // optimizing out the unneeded values to get a minimal dominating partition
-        if &val_plus1 % &exp != BigUint::zero() {
-            //  (x//b^i - 1) * b^i + (b-1)
-            let temp = &val / &exp * &exp - BigUint::one();
-            if prev != temp {
-                ret.push(temp.to_str_radix(base).to_string());
-                prev = temp;
-            }
-        }
-        exp *= base;
-    }
-    ret
-}
-
-/// to_ints is a function used for the tests to easily compare with Vec<u32>
-#[allow(dead_code)]
-fn to_ints(vals: Vec<String>) -> Vec<u32> {
-    let mut ret: Vec<u32> = Vec::new();
-    for i in vals {
-        let v = i.parse::<u32>().unwrap();
-        ret.push(v);
-    }
-    ret.sort_unstable();
-    ret.reverse();
     ret
 }
 
@@ -116,7 +75,7 @@ fn coef(msg: &[u8], index: usize, bitlength: usize) -> u8 {
 
 // TODO: it currently works for bases 2, 4, 16, 256 (bitlength 1, 2, 4, 8) only
 /// Split value, based on base in bitlength, (supports bitlength 1, 2, 4, 8).
-pub fn value_split_per_base(value: &BigUint, bitlength: usize) -> Vec<u8> {
+pub(crate) fn value_split_per_base(value: &BigUint, bitlength: usize) -> Vec<u8> {
     let v_bytes = value.to_bytes_be();
     let v = v_bytes.as_slice();
 
@@ -131,10 +90,52 @@ pub fn value_split_per_base(value: &BigUint, bitlength: usize) -> Vec<u8> {
     ret
 }
 
+/// For demonstration purposes only, not used in the main Hashwires implementation.
+/// Find dominating partition of a string `value` in some input `base` (works up to base 10).
+/// This is using BigUint and is returning a Vec of String in the same `base`.
+#[allow(dead_code)]
+fn find_dp_u32(value: &str, base: u32) -> Vec<String> {
+    let mut exp = BigUint::new(vec![base]);
+    let mut ret: Vec<String> = Vec::new();
+
+    let val = BigUint::from_str_radix(value, base).unwrap();
+    let val_plus1 = &val + BigUint::one();
+
+    ret.push(val.to_str_radix(base));
+    // We use prev to detect consecutive duplicate entries (a trick to avoid HashSet)
+    let mut prev = val.clone();
+    while exp < val {
+        // optimizing out the unneeded values to get a minimal dominating partition
+        if &val_plus1 % &exp != BigUint::zero() {
+            //  (x//b^i - 1) * b^i + (b-1)
+            let temp = &val / &exp * &exp - BigUint::one();
+            if prev != temp {
+                ret.push(temp.to_str_radix(base).to_string());
+                prev = temp;
+            }
+        }
+        exp *= base;
+    }
+    ret
+}
+
+/// to_ints is a function used for the tests to easily compare with Vec<u32>
+#[allow(dead_code)]
+fn to_ints(vals: Vec<String>) -> Vec<u32> {
+    let mut ret: Vec<u32> = Vec::new();
+    for i in vals {
+        let v = i.parse::<u32>().unwrap();
+        ret.push(v);
+    }
+    ret.sort_unstable();
+    ret.reverse();
+    ret
+}
+
 /// Find dominating partition of a u32 integer `value` in some u32 input `base`.
 /// This is for demonstration purposes and included in the HashWires paper.
 #[allow(dead_code)]
-pub fn find_mdp_u32(value: u32, base: u32) -> Vec<u32> {
+fn find_mdp_u32(value: u32, base: u32) -> Vec<u32> {
     let mut exp = base;
     let mut ret: Vec<u32> = vec![value];
     let mut prev = value;

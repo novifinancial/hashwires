@@ -5,11 +5,11 @@ use rand_chacha::ChaCha12Rng;
 
 /// A variant of Durstenfeld's algorithm, which shuffles from lowest index to highest.
 #[derive(Debug, Default)]
-pub struct Durstenfeld {}
+pub(crate) struct Durstenfeld {}
 
 /// A trait defining `Shuffler` objects that can be used for shuffling data
 /// in various manners
-pub trait Shuffler<T> {
+pub(crate) trait Shuffler<T> {
     /// Shuffle the passed data in-place using randomness from the provided
     /// `RngCore`. `shuffle_len` defines how many elements will be shuffled.
     fn shuffle<R>(
@@ -24,7 +24,6 @@ pub trait Shuffler<T> {
 }
 
 impl<T> Shuffler<T> for Durstenfeld {
-    // TODO: consider descriptive error types
     fn shuffle<R>(
         &mut self,
         data: &mut Vec<T>,
@@ -42,7 +41,7 @@ impl<T> Shuffler<T> for Durstenfeld {
 
         for i in 0..shuffle_len {
             // TODO: document the range implementation,
-            // so we can replicate the logic to other programming languages too.
+            //       so we can replicate the logic to other programming languages too.
             let j = rng.gen_range(i..dlen);
             data.swap(i, j);
         }
@@ -52,7 +51,7 @@ impl<T> Shuffler<T> for Durstenfeld {
 
 /// Deterministic Durstenfeld shuffling to return a list of random indexes in a range [0,max_num)
 /// It is required for shuffling the leaves in the sparse Merkle tree accumulator of HashWires.
-pub fn deterministic_index_shuffling(
+pub(crate) fn deterministic_index_shuffling(
     indexes_required: usize,
     max_num: usize,
     seed: [u8; 32],
