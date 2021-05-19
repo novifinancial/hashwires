@@ -49,6 +49,58 @@ Bob can now generate a range proof by `let proof = secret.prove(base, max_number
 Given the HashWires `commitment` and `proof`, Carol can verify the range proof's statement by 
 `commitment.verify(&proof, &threshold);`, which will return a `HwError` if it fails.
 
+A sample full cycle `prove_and_verify` test: 
+```Rust
+    fn prove_and_verify(
+        base: u32,
+        max_number_bits: usize,
+        value_str: &str,
+        threshold_str: &str,
+    ) -> Result<(), HwError> {
+        let value = BigUint::from_str_radix(value_str, base).unwrap();
+        let threshold = BigUint::from_str_radix(threshold_str, base).unwrap();
+
+        let mut rng = OsRng;
+        let mut seed = vec![0u8; 32];
+        rng.fill_bytes(&mut seed);
+
+        let secret = Secret::<Blake3>::gen(&seed, &value);
+
+        let commitment = secret.commit(base, max_number_bits)?;
+        let commitment_bytes = commitment.serialize();
+
+        let proof = secret.prove(base, max_number_bits, &threshold)?;
+        let proof_bytes = proof.serialize();
+
+        commitment.verify(&proof, &threshold);
+        Commitment::<Blake3>::deserialize(&commitment_bytes, base)
+            .verify(&Proof::deserialize(&proof_bytes)?, &threshold)
+    }
+```
+
+Performance
+-----------
+The HashWires performance depends on 3 parameters: the selected base, the maximum number supported and the underlying 
+hash function.
+
+The benchmarks were run on a MacBook Pro2.4 GHz 8-Core Intel Core i9 CPU with 32GB or RAM.
+As shown, Blake3 performs better than SHA2 in our selected Intel CPU, although it’s true that in AMD Ryzen architectures
+that support SHA extensions BLAKE3 is only slightly faster than hardware-accelerated SHA-256. 
+Another interesting result is that because proof generation internally regenerates the commitment to compute the final 
+tree-inclusion proofs, it is slightly more expensive than commitment creation.
+
+Efficiency comparison (in microseconds) between Bulletproofs with and without AVX2 support, and HashWires for 
+different bases and hash functions.
+
+| scheme                  | Commit gen. | Proof gen. | Proof verify |
+| ----------------------- | ----------- | ---------- | ------------ |
+| Bulletproofs            | 71          | 12099      | 1555         |
+| Bulletproofs AVX2       | 36          | 6516       | 938          |
+| HashWires b16 SHA2-256  | 274         | 278        | 84           |
+| HashWires b256 SHA2-256 | 651         | 656        | 619          |
+| HashWires b16 Blake3    | 101         | 103        | 31           |
+| HashWires b256 Blake3   | 260         | 263        | 230          |
+
 Contributors
 ------------
 
@@ -60,6 +112,10 @@ License
 -------
 
 This project is [MIT licensed](./LICENSE).
+
+Disclaimers
+------------
+This software is still evolving and it has not been audited. Use at your own risk.
 
 [Terms of Use](https://opensource.facebook.com/legal/terms)
 
