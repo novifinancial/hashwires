@@ -596,6 +596,7 @@ mod tests {
         let proof = secret.prove(base, max_number_bits, &threshold)?;
         let proof_bytes = proof.serialize();
 
+        commitment.verify(&proof, &threshold);
         Commitment::<Blake3>::deserialize(&commitment_bytes, base)
             .verify(&Proof::deserialize(&proof_bytes)?, &threshold)
     }
