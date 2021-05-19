@@ -1,8 +1,13 @@
 [package]
 name = "hashwires"
-version = "0.0.1"
-authors = ["Konstantinos Chalkias <kostascrypto@fb.com>", "Yolan Romailler <yromailler@fb.com>"]
+version = "0.1.0"
+repository = "https://github.com/novifinancial/hashwires"
+keywords = ["cryptography", "privacy", "range-proofs", "sparse-tree", "hash-chains"]
+authors = ["Konstantinos Chalkias <kostascrypto@fb.com>", "Kevin Kewi <klewi@fb.com>", "Yolan Romailler <yromailler@fb.com>"]
+description = "HashWires is a range proof system for credentials issued by a trusted third party."
 edition = "2018"
+license = "MIT"
+readme = "README.md"
 
 [lib]
 bench = false
