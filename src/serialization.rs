@@ -1,3 +1,8 @@
+// Copyright (c) Facebook, Inc. and its affiliates.
+//
+// This source code is licensed under the MIT license found in the
+// LICENSE file in the root directory of this source tree.
+
 use crate::errors::HwError;
 
 /// Corresponds to the I2OSP() function from RFC8017
