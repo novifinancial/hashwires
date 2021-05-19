@@ -64,4 +64,3 @@ This project is [MIT licensed](./LICENSE).
 [Terms of Use](https://opensource.facebook.com/legal/terms)
 
 [Privacy Policy](https://opensource.facebook.com/legal/privacy)
-
