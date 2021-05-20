@@ -51,31 +51,34 @@ Given the HashWires `commitment` and `proof`, Carol can verify the range proof's
 
 A sample full cycle `prove_and_verify` test: 
 ```Rust
-    fn prove_and_verify(
-        base: u32,
-        max_number_bits: usize,
-        value_str: &str,
-        threshold_str: &str,
-    ) -> Result<(), HwError> {
-        let value = BigUint::from_str_radix(value_str, base).unwrap();
-        let threshold = BigUint::from_str_radix(threshold_str, base).unwrap();
+// A full HashWires cycle with serialized outputs.
+fn prove_and_verify(
+    base: u32,
+    max_number_bits: usize,
+    value: &BigUint,
+    threshold: &BigUint,
+) -> Result<(), HwError> {
+    // Pick a random 32-byte seed.
+    let mut rng = OsRng;
+    let mut seed = vec![0u8; 32];
+    rng.fill_bytes(&mut seed);
 
-        let mut rng = OsRng;
-        let mut seed = vec![0u8; 32];
-        rng.fill_bytes(&mut seed);
+    // Generate secret.
+    let secret = Secret::<Blake3>::gen(&seed, &value);
 
-        let secret = Secret::<Blake3>::gen(&seed, &value);
+    // Generate and serialize commitment.
+    let commitment = secret.commit(base, max_number_bits)?;
+    let commitment_bytes = commitment.serialize();
 
-        let commitment = secret.commit(base, max_number_bits)?;
-        let commitment_bytes = commitment.serialize();
+    // Generate and serialize a HashWires proof.
+    let proof = secret.prove(base, max_number_bits, &threshold)?;
+    let proof_bytes = proof.serialize();
 
-        let proof = secret.prove(base, max_number_bits, &threshold)?;
-        let proof_bytes = proof.serialize();
-
-        commitment.verify(&proof, &threshold);
-        Commitment::<Blake3>::deserialize(&commitment_bytes, base)
-            .verify(&Proof::deserialize(&proof_bytes)?, &threshold)
-    }
+    // Verify a range proof over a commitment.
+    commitment.verify(&proof, &threshold)?;
+    Commitment::<Blake3>::deserialize(&commitment_bytes, base)
+        .verify(&Proof::deserialize(&proof_bytes)?, &threshold)
+}
 ```
 
 HashWires structure sample

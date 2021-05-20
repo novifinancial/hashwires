@@ -570,46 +570,53 @@ fn compute_mdp_height(base: u32, max_number_bits: usize) -> u32 {
 mod tests {
     use super::*;
     use blake3::Hasher as Blake3;
-    use num_traits::Num;
+    use num_traits::{FromPrimitive, Num};
     use rand_core::{OsRng, RngCore};
     use smtree::pad_secret::ALL_ZEROS_SECRET;
     use smtree::utils::print_output;
 
+    // A full HashWires cycle with serialized outputs.
     fn prove_and_verify(
         base: u32,
         max_number_bits: usize,
-        value_str: &str,
-        threshold_str: &str,
+        value: &BigUint,
+        threshold: &BigUint,
     ) -> Result<(), HwError> {
-        let value = BigUint::from_str_radix(value_str, base).unwrap();
-        let threshold = BigUint::from_str_radix(threshold_str, base).unwrap();
-
+        // Pick a random 32-byte seed.
         let mut rng = OsRng;
         let mut seed = vec![0u8; 32];
         rng.fill_bytes(&mut seed);
 
+        // Generate secret.
         let secret = Secret::<Blake3>::gen(&seed, &value);
 
+        // Generate and serialize commitment.
         let commitment = secret.commit(base, max_number_bits)?;
         let commitment_bytes = commitment.serialize();
 
+        // Generate and serialize a HashWires proof.
         let proof = secret.prove(base, max_number_bits, &threshold)?;
         let proof_bytes = proof.serialize();
 
-        commitment.verify(&proof, &threshold);
+        // Verify a range proof over a commitment.
+        commitment.verify(&proof, &threshold)?;
         Commitment::<Blake3>::deserialize(&commitment_bytes, base)
             .verify(&Proof::deserialize(&proof_bytes)?, &threshold)
     }
 
     #[test]
     fn test_proof_success() -> Result<(), HwError> {
-        assert_eq!(true, prove_and_verify(4, 32, "212", "201").is_ok(),);
+        let value = BigUint::from_u32(402).unwrap();
+        let threshold = BigUint::from_u32(378).unwrap();
+        assert_eq!(true, prove_and_verify(4, 32, &value, &threshold).is_ok());
         Ok(())
     }
 
     #[test]
     fn test_proof_failure() -> Result<(), HwError> {
-        assert_eq!(false, prove_and_verify(4, 32, "201", "212").is_ok(),);
+        let value = BigUint::from_u32(378).unwrap();
+        let threshold = BigUint::from_u32(402).unwrap();
+        assert_eq!(true, prove_and_verify(4, 32, &value, &threshold).is_ok());
         Ok(())
     }
 

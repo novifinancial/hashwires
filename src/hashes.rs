@@ -39,7 +39,7 @@ pub(crate) fn plr_accumulator<D: Hash>(
     list.iter().enumerate().for_each(|(i, v)| {
         if i != 0 {
             hasher.update(&output);
-            if i == list.len() - desired_length {
+            if list.len() > desired_length && i == list.len() - desired_length {
                 plr_path_node = Some(GenericArray::clone_from_slice(
                     &output[..PlrPaddingSize::to_usize()],
                 ));
