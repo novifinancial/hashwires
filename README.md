@@ -78,10 +78,9 @@ A sample full cycle `prove_and_verify` test:
     }
 ```
 
-We provide a full snapshot of a HashWires commitment structure for the number 312 in base-4. Note that malleability 
-protection is work in progress.
-
 ![HashWires snapshot](https://github.com/novifinancial/hashwires/blob/master/images/HashWires.png?raw=true)
+Fig.1 Full snapshot of a HashWires commitment structure for the number 312 in base-4. Note that malleability 
+protection is work in progress.
 
 Performance
 -----------
