@@ -1,4 +1,4 @@
-# HashWires :: Range proofs for issued credentials
+# HashWires 🐙 :: Range proofs for issued credentials 
 
 A Rust implementation of the range proof scheme described in [HashWires: Hyperefficient Credential-Based Range Proofs](https://eprint.iacr.org/2021/297) 
 by *Konstantinos Chalkias and Shir Cohen and Kevin Lewi and Fredric Moezinia and Yolan Romailler*. A more simplified 
@@ -77,6 +77,11 @@ A sample full cycle `prove_and_verify` test:
             .verify(&Proof::deserialize(&proof_bytes)?, &threshold)
     }
 ```
+
+We provide a full snapshot of a HashWires commitment structure for the number 312 in base-4. Note that malleability 
+protection is work in progress.
+
+![alt text](https://github.com/novifinancial/hashwires/blob/master/images/image.jpg?raw=true)
 
 Performance
 -----------
