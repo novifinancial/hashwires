@@ -95,8 +95,8 @@ that support SHA extensions BLAKE3 is only slightly faster than hardware-acceler
 Another interesting result is that because proof generation internally regenerates the commitment to compute the final 
 tree-inclusion proofs, it is slightly more expensive than commitment creation.
 
-Efficiency comparison (in microseconds) between Bulletproofs with and without AVX2 support, and HashWires for 
-different bases and hash functions.
+Efficiency comparison (in microseconds) between Bulletproofs with and without AVX2 support, and HashWires for 64-bit 
+integers, different bases and hash functions.
 
 | scheme                  | Commit gen. | Proof gen. | Proof verify |
 | ----------------------- | ----------- | ---------- | ------------ |
