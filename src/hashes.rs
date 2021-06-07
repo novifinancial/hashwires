@@ -30,7 +30,7 @@ pub(crate) fn plr_accumulator<D: Hash>(
         hasher.update(seed);
         let result = &hasher.finalize_reset()[..PlrPaddingSize::to_usize()];
         hasher.update(&result);
-        Some(GenericArray::clone_from_slice(&result))
+        Some(GenericArray::clone_from_slice(result))
     } else {
         None
     };

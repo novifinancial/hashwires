@@ -158,7 +158,7 @@ impl Proof {
         ]
         .concat();
         if let Some(v) = &self.plr_padding {
-            result.extend_from_slice(&v);
+            result.extend_from_slice(v);
         }
 
         result
@@ -168,7 +168,7 @@ impl Proof {
     pub fn deserialize(input: &[u8]) -> Result<Self, HwError> {
         let (chain_nodes_flattened, remainder) = tokenize(&input, 2)?;
         let (mdp_salt, remainder) = take_slice(&remainder, MdpSaltSize::to_usize())?;
-        let (smt_inclusion_proof, remainder) = tokenize(&remainder, 2)?;
+        let (smt_inclusion_proof, remainder) = tokenize(remainder, 2)?;
         let plr_padding = match remainder.is_empty() {
             true => None,
             false => {
@@ -176,7 +176,7 @@ impl Proof {
                 if !remainder.is_empty() {
                     return Err(HwError::SerializationError);
                 }
-                Some(GenericArray::clone_from_slice(&padding))
+                Some(GenericArray::clone_from_slice(padding))
             }
         };
 
@@ -195,7 +195,7 @@ impl Proof {
         Ok(Self {
             chain_nodes,
             plr_padding,
-            mdp_salt: GenericArray::clone_from_slice(&mdp_salt),
+            mdp_salt: GenericArray::clone_from_slice(mdp_salt),
             smt_inclusion_proof,
         })
     }
@@ -231,7 +231,7 @@ pub fn larger_than_proof_gen<D: Hash>(
 
     // Step 3: compute required hashchains
     let chains: Vec<Vec<[u8; 32]>> =
-        compute_hash_chains::<D>(&seed, splits[0].len(), base, splits[0][0]);
+        compute_hash_chains::<D>(seed, splits[0].len(), base, splits[0][0]);
 
     // Step 4: MDP to hashchain(s) position wiring
     let wires: Vec<Vec<[u8; 32]>> = wires(&splits, &chains);
@@ -325,7 +325,7 @@ pub fn proof_verify<D: Hash>(
     let salted_mdp_root = salted_hash::<D>(mdp_salt, &mdp_root);
 
     // Decode the Merkle proof.
-    let deserialized_proof = MerkleProof::<HashWiresNodeSmt<D>>::deserialize(&smt_inclusion_proof)
+    let deserialized_proof = MerkleProof::<HashWiresNodeSmt<D>>::deserialize(smt_inclusion_proof)
         .map_err(|_| HwError::MerkleProofDecodingError)?;
 
     let commitment_node = HashWiresNodeSmt::<D>::new(commitment.to_owned());
@@ -353,7 +353,7 @@ pub fn commit_gen<D: Hash>(
 
     // Step 3: compute required hash chains
     let chains: Vec<Vec<[u8; 32]>> =
-        compute_hash_chains::<D>(&seed, splits[0].len(), base, splits[0][0]);
+        compute_hash_chains::<D>(seed, splits[0].len(), base, splits[0][0]);
 
     // Step 4: MDP to hashchain(s) position wiring
     let wires: Vec<Vec<[u8; 32]>> = wires(&splits, &chains);
@@ -616,7 +616,7 @@ mod tests {
     fn test_proof_failure() -> Result<(), HwError> {
         let value = BigUint::from_u32(378).unwrap();
         let threshold = BigUint::from_u32(402).unwrap();
-        assert_eq!(true, prove_and_verify(4, 32, &value, &threshold).is_ok());
+        assert_eq!(true, prove_and_verify(4, 32, &value, &threshold).is_err());
         Ok(())
     }
 
