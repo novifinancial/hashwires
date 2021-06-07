@@ -1,8 +1,6 @@
 # HashWires 🐙 :: Range proofs for issued credentials 
 
-A Rust implementation of the range proof scheme described in [HashWires: Hyperefficient Credential-Based Range Proofs](https://eprint.iacr.org/2021/297) 
-by *Konstantinos Chalkias and Shir Cohen and Kevin Lewi and Fredric Moezinia and Yolan Romailler*. A more simplified 
-demonstration of how HashWires work is available as a [ZKProof blogpost](https://zkproof.org/2021/05/05/hashwires-range-proofs-from-hash-functions/).
+A Rust implementation of the range proof scheme described in [HashWires: Hyperefficient Credential-Based Range Proofs](https://eprint.iacr.org/2021/297), accepted in Privacy Enhancing Technologies (PETS) 2021 conference, by *Konstantinos Chalkias and Shir Cohen and Kevin Lewi and Fredric Moezinia and Yolan Romailler*. A more simplified demonstration of how HashWires work is available as a [ZKProof blogpost](https://zkproof.org/2021/05/05/hashwires-range-proofs-from-hash-functions/).
 
 HashWires is a hash-based range proof protocol that is applicable in settings for which there is a trusted third party 
 (typically a credential issuer) that can generate commitments. We refer to these as "credential-based" range proofs 
