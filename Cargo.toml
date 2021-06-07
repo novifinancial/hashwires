@@ -1,0 +1,46 @@
+[package]
+name = "hashwires"
+version = "0.1.0"
+repository = "https://github.com/novifinancial/hashwires"
+keywords = ["cryptography", "privacy", "range-proofs", "sparse-tree", "hash-chains"]
+authors = ["Konstantinos Chalkias <kostascrypto@fb.com>", "Kevin Lewi <klewi@fb.com>", "Yolan Romailler <yromailler@fb.com>"]
+description = "HashWires is a range proof system for credentials issued by a trusted third party."
+edition = "2018"
+license = "MIT"
+readme = "README.md"
+
+[lib]
+bench = false
+
+[[bench]]
+name = "hw_bench"
+harness = false
+
+[[bench]]
+name = "bp_bench"
+harness = false
+
+[dependencies]
+displaydoc = "0.2.1"
+num-bigint = "0.4.0"
+num-traits = "0.2.14"
+generic-array = "0.14.4"
+digest = "0.9.0"
+hex = "0.4.3"
+rand_chacha = "0.3.0"
+rand = "0.8.3"
+rand_core = "0.6.2"
+sha2 = "0.9.5"
+sha3 = "0.9.1"
+smtree = "0.1.1"
+thiserror = "1.0.24"
+
+[dev-dependencies.blake3]
+version = "0.3.7"
+features = ["rayon"]
+
+[dev-dependencies]
+criterion = "0.3.4"
+bulletproofs = "4.0.0"
+curve25519-dalek-ng = "4.0.1"
+merlin = "3.0.0"
