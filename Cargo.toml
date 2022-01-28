@@ -32,7 +32,7 @@ rand = "0.8.3"
 rand_core = "0.6.2"
 sha2 = "0.9.5"
 sha3 = "0.9.1"
-smtree = "0.1.1"
+smtree = "0.1.2"
 thiserror = "1.0.24"
 
 [dev-dependencies.blake3]
